@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>2026 沖繩八天七夜</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/iconify-icon@2.1.0/dist/iconify-icon.min.js"></script>
@@ -713,7 +713,7 @@
   @media (max-width: 768px) {
     #app {
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
       position: relative;
     }
@@ -730,8 +730,8 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 42vh;
-      max-height: 92vh;
+      height: 42dvh;
+      max-height: calc(92dvh - env(safe-area-inset-top, 0px));
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
       z-index: 200;
@@ -739,8 +739,9 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.expanded { height: 92vh; }
+    #panel.expanded { height: calc(92dvh - env(safe-area-inset-top, 0px)); }
     #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     .trip-name { font-size: 18px; margin-bottom: 8px; }
     #drag-handle {
@@ -2224,11 +2225,12 @@ function showListView() {
     panel.style.transition = ''; // restore transition
     // snap to expanded or collapsed
     const h = panel.offsetHeight;
-    if (h > window.innerHeight * 0.5) {
-      panel.style.height = '92vh';
+    const vh = window.innerHeight;
+    if (h > vh * 0.5) {
+      panel.style.height = (vh * 0.92) + 'px';
       panel.classList.add('expanded');
     } else {
-      panel.style.height = '42vh';
+      panel.style.height = (vh * 0.42) + 'px';
       panel.classList.remove('expanded');
     }
   });

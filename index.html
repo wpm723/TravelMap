@@ -742,7 +742,9 @@
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     #panel.expanded { height: 85dvh; }
-    #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; cursor: grab; }
+    #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; }
+    #drag-zone { cursor: grab; }
+    #drag-zone { cursor: grab; }
     .trip-name { font-size: 18px; margin-bottom: 8px; }
     #drag-handle {
       width: 40px; height: 4px;
@@ -1093,16 +1095,18 @@
   <div id="panel">
     <div id="panel-header">
       <div id="drag-handle"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <button onclick="backToProjects()" style="background:rgba(255,255,255,0.15);border:none;color:rgba(255,255,255,0.9);border-radius:6px;padding:5px 7px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><iconify-icon icon="tabler:arrow-left" style="font-size:1.25rem;"></iconify-icon></button>
-          <div style="min-width:0;">
-            <div class="trip-title" id="header-subtitle">2026 · OKINAWA</div>
-            <div class="trip-name" id="header-name">八天七夜 沖繩之旅</div>
+      <div id="drag-zone" style="padding-bottom:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <button onclick="backToProjects()" style="background:rgba(255,255,255,0.15);border:none;color:rgba(255,255,255,0.9);border-radius:6px;padding:5px 7px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><iconify-icon icon="tabler:arrow-left" style="font-size:1.25rem;"></iconify-icon></button>
+            <div style="min-width:0;">
+              <div class="trip-title" id="header-subtitle">2026 · OKINAWA</div>
+              <div class="trip-name" id="header-name">八天七夜 沖繩之旅</div>
+            </div>
           </div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;position:relative;z-index:2;flex-shrink:0;">
-          <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;"></div>
+          <div style="display:flex;gap:6px;align-items:center;position:relative;z-index:2;flex-shrink:0;">
+            <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;"></div>
+          </div>
         </div>
       </div>
       <div id="day-tabs"></div>
@@ -2198,25 +2202,27 @@ function showListView() {
 // ===== MOBILE DRAG =====
 (function() {
   const panel = document.getElementById('panel');
-  const header = document.getElementById('panel-header');
+  const dragZone = document.getElementById('drag-zone');
+  const handle = document.getElementById('drag-handle');
   let startY = 0, startH = 0, dragging = false;
 
   function isMobile() { return window.innerWidth <= 768; }
 
-  // Make the entire header draggable (not just the tiny 4px bar)
-  header.addEventListener('touchstart', (e) => {
+  function onTouchStart(e) {
     if (!isMobile()) return;
-    // Don't interfere with button taps
     if (e.target.closest('button, a, select, input')) return;
     dragging = true;
     startY = e.touches[0].clientY;
     startH = panel.offsetHeight;
     panel.style.transition = 'none';
-  }, { passive: true });
+  }
+
+  dragZone.addEventListener('touchstart', onTouchStart, { passive: true });
+  handle.addEventListener('touchstart', onTouchStart, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
     if (!dragging || !isMobile()) return;
-    e.preventDefault(); // prevent page scroll while dragging panel
+    e.preventDefault();
     const dy = startY - e.touches[0].clientY;
     const newH = Math.max(120, Math.min(window.innerHeight * 0.85, startH + dy));
     panel.style.height = newH + 'px';

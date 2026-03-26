@@ -731,7 +731,7 @@
       right: 0;
       width: 100%;
       height: 42dvh;
-      max-height: calc(92dvh - env(safe-area-inset-top, 0px));
+      max-height: 85dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
       z-index: 200;
@@ -741,8 +741,8 @@
       overflow: hidden;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.expanded { height: calc(92dvh - env(safe-area-inset-top, 0px)); }
-    #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; }
+    #panel.expanded { height: 85dvh; }
+    #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; cursor: grab; }
     .trip-name { font-size: 18px; margin-bottom: 8px; }
     #drag-handle {
       width: 40px; height: 4px;
@@ -2198,23 +2198,27 @@ function showListView() {
 // ===== MOBILE DRAG =====
 (function() {
   const panel = document.getElementById('panel');
-  const handle = document.getElementById('drag-handle');
+  const header = document.getElementById('panel-header');
   let startY = 0, startH = 0, dragging = false;
 
   function isMobile() { return window.innerWidth <= 768; }
 
-  handle.addEventListener('touchstart', (e) => {
+  // Make the entire header draggable (not just the tiny 4px bar)
+  header.addEventListener('touchstart', (e) => {
     if (!isMobile()) return;
+    // Don't interfere with button taps
+    if (e.target.closest('button, a, select, input')) return;
     dragging = true;
     startY = e.touches[0].clientY;
     startH = panel.offsetHeight;
-    panel.style.transition = 'none'; // disable transition while dragging
+    panel.style.transition = 'none';
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
     if (!dragging || !isMobile()) return;
+    e.preventDefault(); // prevent page scroll while dragging panel
     const dy = startY - e.touches[0].clientY;
-    const newH = Math.max(120, Math.min(window.innerHeight * 0.92, startH + dy));
+    const newH = Math.max(120, Math.min(window.innerHeight * 0.85, startH + dy));
     panel.style.height = newH + 'px';
     panel.classList.toggle('expanded', newH > window.innerHeight * 0.5);
   }, { passive: false });
@@ -2222,12 +2226,11 @@ function showListView() {
   document.addEventListener('touchend', () => {
     if (!dragging) return;
     dragging = false;
-    panel.style.transition = ''; // restore transition
-    // snap to expanded or collapsed
+    panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
     if (h > vh * 0.5) {
-      panel.style.height = (vh * 0.92) + 'px';
+      panel.style.height = (vh * 0.85) + 'px';
       panel.classList.add('expanded');
     } else {
       panel.style.height = (vh * 0.42) + 'px';

@@ -2635,8 +2635,9 @@ async function createProject() {
     label: `Day ${i+1}`, date: '', spots: [], transports: [], center: [26.2, 127.7], zoom: 12
   }));
   const meta = { tripName: name, tripSubtitle: sub, startDate: start, endDate: end, note: '' };
-  const { data: { user } } = await sb.auth.getUser();
-  const { data, error } = await sb.from('projects').insert({ name, user_id: user.id, data: { meta, days: newDays } }).select().single();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { alert('請先登入'); return; }
+  const { data, error } = await sb.from('projects').insert({ name, user_id: session.user.id, data: { meta, days: newDays } }).select().single();
   if (error) { alert('建立失敗：' + error.message); return; }
   closeNewProjectModal();
   loadProject(data.id, data);

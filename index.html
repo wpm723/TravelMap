@@ -1819,7 +1819,17 @@ function openDetail(spot) {
   const listView = document.getElementById('list-view');
   listView.classList.add('hidden-left');
   view.classList.remove('hidden-right');
-  if (spot.lat != null && spot.lng != null) map.setView([spot.lat, spot.lng], 15, { animate: true });
+  if (spot.lat != null && spot.lng != null) {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      // First center normally, then shift up by panel height / 2 in pixels
+      map.setView([spot.lat, spot.lng], 15, { animate: false });
+      const panelH = document.getElementById('panel').offsetHeight;
+      map.panBy([0, panelH / 2], { animate: true });
+    } else {
+      map.setView([spot.lat, spot.lng], 15, { animate: true });
+    }
+  }
   setTimeout(() => focusMapMarker(spot.id), 50);
 }
 
@@ -2197,6 +2207,7 @@ function showListView() {
     dragging = true;
     startY = e.touches[0].clientY;
     startH = panel.offsetHeight;
+    panel.style.transition = 'none'; // disable transition while dragging
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
@@ -2205,18 +2216,35 @@ function showListView() {
     const newH = Math.max(120, Math.min(window.innerHeight * 0.92, startH + dy));
     panel.style.height = newH + 'px';
     panel.classList.toggle('expanded', newH > window.innerHeight * 0.5);
-  }, { passive: true });
+  }, { passive: false });
 
-  document.addEventListener('touchend', () => { dragging = false; });
+  document.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    panel.style.transition = ''; // restore transition
+    // snap to expanded or collapsed
+    const h = panel.offsetHeight;
+    if (h > window.innerHeight * 0.5) {
+      panel.style.height = '92vh';
+      panel.classList.add('expanded');
+    } else {
+      panel.style.height = '42vh';
+      panel.classList.remove('expanded');
+    }
+  });
 
   // Mobile swipe left/right to change day
   const body = document.getElementById('panel-body');
-  let swipeStartX = 0;
-  body.addEventListener('touchstart', e => { swipeStartX = e.touches[0].clientX; }, { passive: true });
+  let swipeStartX = 0, swipeStartY = 0;
+  body.addEventListener('touchstart', e => {
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+  }, { passive: true });
   body.addEventListener('touchend', e => {
     if (!isMobile()) return;
     const dx = e.changedTouches[0].clientX - swipeStartX;
-    if (Math.abs(dx) > 60) {
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       if (dx < 0 && currentDay < DAYS.length - 1) switchDay(currentDay + 1);
       else if (dx > 0 && currentDay > 0) switchDay(currentDay - 1);
     }
@@ -2674,6 +2702,7 @@ async function loadProject(id, row) {
   }
   if (!row) return;
   currentProjectId = id;
+  sessionStorage.setItem('last_project_id', id);
   const saved = row.data || {};
   DAYS.length = 0;
   (saved.days || []).forEach(d => DAYS.push(d));
@@ -2690,6 +2719,7 @@ async function loadProject(id, row) {
 async function backToProjects() {
   await flushSave();
   currentProjectId = null;
+  sessionStorage.removeItem('last_project_id');
   document.getElementById('projects-screen').classList.remove('hidden');
   renderProjectsList();
 }
@@ -2756,24 +2786,39 @@ function importData(e) {
 // ===== INIT =====
 async function enterApp(session) {
   document.getElementById('auth-screen').classList.add('hidden');
-  document.getElementById('projects-screen').classList.remove('hidden');
   initMap();
+
+  // Try to restore last opened project
+  const lastId = sessionStorage.getItem('last_project_id');
+  if (lastId) {
+    const { data } = await sb.from('projects').select('id, name, data').eq('id', lastId).single();
+    if (data) {
+      await loadProject(data.id, data);
+      return;
+    }
+  }
+
+  // Otherwise show projects list
+  document.getElementById('projects-screen').classList.remove('hidden');
   await renderProjectsList();
 }
 
 sb.auth.onAuthStateChange((event, session) => {
-  if (session) {
-    enterApp(session);
-  } else {
+  if (event === 'SIGNED_OUT') {
+    sessionStorage.removeItem('last_project_id');
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('projects-screen').classList.add('hidden');
+  } else if (session && event === 'SIGNED_IN') {
+    enterApp(session);
   }
 });
 
 // Check existing session on load
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
-  if (!session) {
+  if (session) {
+    enterApp(session);
+  } else {
     document.getElementById('auth-screen').classList.remove('hidden');
   }
 })();

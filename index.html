@@ -1046,8 +1046,13 @@
 <!-- Projects Screen -->
 <div id="projects-screen">
   <div class="projects-header">
-    <h1>我的行程</h1>
-    <p>選擇行程或建立新的旅遊計畫</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <h1>我的行程</h1>
+        <p>選擇行程或建立新的旅遊計畫</p>
+      </div>
+      <button onclick="signOut()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:6px 14px;font-size:0.875rem;cursor:pointer;font-family:inherit;margin-top:4px;flex-shrink:0;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">登出</button>
+    </div>
   </div>
   <div class="projects-list" id="projects-list"></div>
   <button class="projects-add-btn" onclick="openNewProjectModal()">＋ 新增行程</button>
@@ -1089,16 +1094,13 @@
       <div id="drag-handle"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <button onclick="backToProjects()" style="background:rgba(255,255,255,0.15);border:none;color:rgba(255,255,255,0.8);border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">← 全部行程</button>
+          <button onclick="backToProjects()" style="background:rgba(255,255,255,0.15);border:none;color:rgba(255,255,255,0.9);border-radius:6px;padding:5px 7px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><iconify-icon icon="tabler:arrow-left" style="font-size:1.25rem;"></iconify-icon></button>
           <div style="min-width:0;">
             <div class="trip-title" id="header-subtitle">2026 · OKINAWA</div>
             <div class="trip-name" id="header-name">八天七夜 沖繩之旅</div>
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;position:relative;z-index:2;flex-shrink:0;">
-          <button onclick="exportData()" title="匯出備份" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">匯出</button>
-          <label title="匯入備份" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">匯入<input type="file" accept=".json" onchange="importData(event)" style="display:none;"></label>
-          <button onclick="signOut()" title="登出" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">登出</button>
           <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;"></div>
         </div>
       </div>
@@ -1774,7 +1776,7 @@ function openDetail(spot) {
 
   view.innerHTML = `
     <div class="detail-back">
-      <span onclick="showListView()" style="display:flex;align-items:center;cursor:pointer;font-size:20px;line-height:1;padding:0 2px;color:var(--ocean);">←</span>
+      <span onclick="showListView()" style="display:flex;align-items:center;cursor:pointer;padding:0 2px;color:var(--ocean);"><iconify-icon icon="tabler:arrow-left" style="font-size:1.5rem;"></iconify-icon></span>
       <span style="flex:1;margin:0 8px;font-size:1rem;font-weight:600;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span>
       <div style="display:flex;align-items:center;gap:12px;">
         <button onclick="navigateDetail(-1)" style="${navBtnStyle}">‹ 前一個</button>
@@ -1843,7 +1845,7 @@ function openDetailEdit() {
   const view = document.getElementById('detail-view');
   view.innerHTML = `
     <div class="detail-back">
-      <span onclick="openDetail(DAYS[detailTarget.day].spots[detailTarget.idx])" style="display:flex;align-items:center;cursor:pointer;font-size:20px;line-height:1;padding:0 2px;color:var(--ocean);">←</span>
+      <span onclick="openDetail(DAYS[detailTarget.day].spots[detailTarget.idx])" style="display:flex;align-items:center;cursor:pointer;padding:0 2px;color:var(--ocean);"><iconify-icon icon="tabler:arrow-left" style="font-size:1.5rem;"></iconify-icon></span>
       <span style="flex:1;margin:0 8px;font-size:1rem;font-weight:600;color:var(--text);">編輯景點</span>
       <span id="detail-saved-ind" style="font-size:12px;color:#22c55e;opacity:0;transition:opacity 0.3s;">✓ 已儲存</span>
     </div>
@@ -2237,7 +2239,6 @@ function renderOverview() {
         <div style="font-size:1rem;font-weight:600;color:var(--text);">${d.date}</div>
       </div>
       <div style="font-size:0.875rem;color:var(--gray-400);">${d.spots.length} 個景點</div>
-      <div style="font-size:0.875rem;color:var(--ocean);">→</div>
     </div>`).join('');
 
   v.innerHTML = `
@@ -2288,6 +2289,15 @@ function renderOverview() {
       <div>
         <div class="detail-section-title" style="margin-bottom:4px;">天數一覽 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;">（點擊跳轉）</span></div>
         ${dayRows}
+      </div>
+
+      <div style="margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--gray-100);">
+        <button onclick="confirmDeleteProject()"
+          style="width:100%;padding:0.75rem;border-radius:10px;border:1.5px solid rgba(224,122,95,0.3);background:transparent;color:var(--coral);font-size:1rem;font-family:inherit;cursor:pointer;transition:all 0.2s;"
+          onmouseover="this.style.background='var(--coral)';this.style.color='#fff';this.style.borderColor='var(--coral)'"
+          onmouseout="this.style.background='transparent';this.style.color='var(--coral)';this.style.borderColor='rgba(224,122,95,0.3)'">
+          刪除此行程
+        </button>
       </div>
     </div>
   `;
@@ -2602,7 +2612,6 @@ async function renderProjectsList() {
           <div class="project-card-meta">${metaStr}</div>
         </div>
         <div class="project-card-arrow">›</div>
-        <button class="project-delete-btn" onclick="event.stopPropagation();deleteProject('${p.id}')" title="刪除">✕</button>
       </div>`;
   }).join('');
 }
@@ -2641,6 +2650,15 @@ async function createProject() {
   if (error) { alert('建立失敗：' + error.message); return; }
   closeNewProjectModal();
   loadProject(data.id, data);
+}
+
+async function confirmDeleteProject() {
+  if (!currentProjectId) return;
+  if (!confirm('確定要刪除「' + (TRIP_META.tripName || '此行程') + '」嗎？這個操作無法復原。')) return;
+  await sb.from('projects').delete().eq('id', currentProjectId);
+  currentProjectId = null;
+  document.getElementById('projects-screen').classList.remove('hidden');
+  renderProjectsList();
 }
 
 async function deleteProject(id) {

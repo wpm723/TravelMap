@@ -28,7 +28,7 @@
     --shadow-sm: none;
     --shadow-md: none;
     --shadow-lg: none;
-    --panel-w: 380px;
+    --panel-w: 420px;
     --radius: 16px;
   }
 
@@ -90,7 +90,7 @@
     font-size: 18px;
     color: #fff;
     line-height: 1.2;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     position: relative;
     z-index: 1;
   }
@@ -103,7 +103,7 @@
     scrollbar-width: none;
     position: relative;
     z-index: 1;
-    padding-bottom: 2px;
+    padding-bottom: 0;
   }
   #day-tabs::-webkit-scrollbar { display: none; }
   .day-tab {
@@ -225,20 +225,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 2px;
-  }
-  .spot-num {
-    flex-shrink: 0;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: var(--ocean);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 1px;
+    margin-top: 0;
   }
   .spot-num.food { background: var(--coral); }
   .spot-num.hotel { background: #7c3aed; }
@@ -303,11 +290,12 @@
   /* Top-right corner buttons on card */
   .spot-corner-btns {
     position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
+    top: 0;
+    right: 0;
     display: flex;
     align-items: center;
     gap: 4px;
+    padding: 0.75rem 0.625rem 0 0;
     z-index: 2;
   }
   .spot-map-btn {
@@ -333,20 +321,19 @@
   /* Three-dot menu */
   .spot-menu-wrap { position: relative; }
   .spot-menu-btn {
-    width: 26px; height: 26px;
+    width: 30px; height: 30px;
     border-radius: 6px;
     border: none;
     background: transparent;
-    color: var(--gray-400);
-    font-size: 16px;
+    color: var(--gray-800);
+    font-size: 18px;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: color 0.15s, background 0.15s;
-    line-height: 1;
     padding: 0;
     flex-shrink: 0;
   }
-  .spot-menu-btn:hover { color: var(--text); background: var(--gray-100); border-radius: 6px; }
+  .spot-menu-btn:hover { background: var(--gray-100); }
   .spot-menu-dropdown {
     display: none;
     position: absolute;
@@ -496,14 +483,6 @@
     position: relative;
     border-bottom: 1px solid var(--gray-100);
   }
-  .detail-name-display {
-    font-size: 26px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.2;
-    margin-bottom: 12px;
-    word-break: break-all;
-  }
   .detail-name-input {
     background: var(--gray-100);
     border: 1px solid var(--gray-200);
@@ -522,11 +501,11 @@
   .detail-name-input:focus { border-color: var(--ocean); background: #fff; }
 
   .detail-name-display {
-    font-size: 1.625rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text);
     line-height: 1.2;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0;
     word-break: break-all;
   }
   .detail-name-input {
@@ -594,7 +573,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.625rem;
+    margin-bottom: 0.3rem;
   }
   .detail-field-row:last-child { margin-bottom: 0; }
   .detail-field-label {
@@ -632,8 +611,10 @@
     transition: border-color 0.2s, background 0.2s;
   }
   .detail-field-textarea:focus { border-color: var(--ocean); background: #fff; }
-  .detail-coord-row { display: flex; gap: 0.375rem; margin-bottom: 0.375rem; }
-  .detail-geocode-row { display: flex; gap: 0.375rem; }
+  .detail-coord-row { display: flex; gap: 0.375rem; margin-bottom: 0.375rem; width: 100%; box-sizing: border-box; }
+  .detail-coord-row .detail-field-input { flex: 1; min-width: 0; }
+  .detail-geocode-row { display: flex; gap: 0.375rem; width: 100%; box-sizing: border-box; }
+  .detail-geocode-row .detail-field-input { flex: 1; min-width: 0; }
   .detail-geocode-status { font-size: 0.875rem; margin-top: 0.25rem; color: var(--gray-400); }
 
   /* Nav + time display */
@@ -730,27 +711,27 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 42dvh;
-      max-height: 85dvh;
+      height: 30dvh;
+      max-height: 90dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
       z-index: 200;
-      transition: height 0.35s cubic-bezier(0.4,0,0.2,1);
+      transition: height 0.3s cubic-bezier(0.4,0,0.2,1);
       display: flex;
       flex-direction: column;
       overflow: hidden;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.expanded { height: 85dvh; }
-    #panel-header { padding: 0 20px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; }
+    #panel.mid { height: 60dvh; }
+    #panel.expanded { height: 90dvh; }
+    #panel-header { padding: 0 16px; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     #drag-zone { cursor: grab; }
-    #drag-zone { cursor: grab; }
-    .trip-name { font-size: 18px; margin-bottom: 8px; }
+    .trip-name { font-size: 15px; margin-bottom: 0; }
     #drag-handle {
-      width: 40px; height: 4px;
+      width: 36px; height: 4px;
       background: rgba(255,255,255,0.35);
       border-radius: 2px;
-      margin: 12px auto 8px;
+      margin: 8px auto 6px;
       cursor: grab;
       flex-shrink: 0;
     }
@@ -1096,17 +1077,15 @@
     <div id="panel-header">
       <div id="drag-handle"></div>
       <div id="drag-zone" style="padding-bottom:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-            <button onclick="backToProjects()" style="background:rgba(255,255,255,0.15);border:none;color:rgba(255,255,255,0.9);border-radius:6px;padding:5px 7px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;line-height:1;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'"><iconify-icon icon="tabler:arrow-left" style="font-size:1.25rem;"></iconify-icon></button>
-            <div style="min-width:0;">
-              <div class="trip-title" id="header-subtitle">2026 · OKINAWA</div>
-              <div class="trip-name" id="header-name">八天七夜 沖繩之旅</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1;">
+            <button onclick="backToProjects()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:36px;height:36px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
+            <div style="min-width:0;display:flex;align-items:center;gap:0;overflow:hidden;flex:1;">
+              <div class="trip-name" id="header-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">八天七夜 沖繩之旅</div>
+              <div class="trip-title" id="header-subtitle" style="white-space:nowrap;opacity:0.6;font-size:0.75rem;letter-spacing:1px;margin-left:auto;padding-left:8px;flex-shrink:0;">2026 · OKINAWA</div>
             </div>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;position:relative;z-index:2;flex-shrink:0;">
-            <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;"></div>
-          </div>
+          <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;flex-shrink:0;margin-left:6px;"></div>
         </div>
       </div>
       <div id="day-tabs"></div>
@@ -1620,7 +1599,7 @@ function renderList() {
       <div class="spot-corner-btns" onclick="event.stopPropagation()">
         <a class="spot-map-btn" href="${navUrl}" target="_blank"><iconify-icon icon="material-symbols:directions-rounded" style="font-size:16px;"></iconify-icon>導航</a>
         <div class="spot-menu-wrap">
-          <button class="spot-menu-btn" onclick="toggleSpotMenu('menu-${currentDay}-${i}',event)">···</button>
+          <button class="spot-menu-btn" onclick="toggleSpotMenu('menu-${currentDay}-${i}',event)"><iconify-icon icon="si:more-vert-duotone" style="font-size:1.5rem;pointer-events:none;"></iconify-icon></button>
           <div class="spot-menu-dropdown" id="menu-${currentDay}-${i}">
             <button class="spot-menu-item" onclick="openDetailAndEdit(${currentDay},${i})">編輯</button>
             <button class="spot-menu-item" onclick="duplicateSpot(${currentDay},${i})">建立副本</button>
@@ -1765,7 +1744,7 @@ function openDetail(spot) {
       : null;
   const hasMapUrl = !!spot.mapUrl;
   const disabledStyle = 'opacity:0.35;pointer-events:none;cursor:default;';
-  const btnBase = 'display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;min-height:44px;transition:all 0.15s;';
+  const btnBase = 'display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:10px;font-size:1rem;font-weight:600;text-decoration:none;height:40px;transition:all 0.15s;';
   const navBtnHtml = navUrl
     ? `<a href="${navUrl}" target="_blank" style="${btnBase}background:var(--ocean);color:#fff;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'"><iconify-icon icon="material-symbols:directions-rounded" style="font-size:22px;"></iconify-icon>導航</a>`
     : `<span style="${btnBase}background:var(--ocean);color:#fff;opacity:0.35;cursor:default;pointer-events:none;"><iconify-icon icon="material-symbols:directions-rounded" style="font-size:22px;"></iconify-icon>導航</span>`;
@@ -1792,7 +1771,7 @@ function openDetail(spot) {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
         <div class="detail-name-display" style="flex:1;">${spot.name}</div>
         <div class="spot-menu-wrap" style="flex-shrink:0;margin-top:4px;">
-          <button class="spot-menu-btn" style="width:32px;height:32px;" onclick="toggleSpotMenu('detail-action-menu',event)">···</button>
+          <button class="spot-menu-btn" style="width:32px;height:32px;" onclick="toggleSpotMenu('detail-action-menu',event)"><iconify-icon icon="si:more-vert-duotone" style="font-size:1.5rem;pointer-events:none;"></iconify-icon></button>
           <div class="spot-menu-dropdown" id="detail-action-menu">
             <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');openDetailEdit()">編輯</button>
             <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');duplicateFromDetail()">建立副本</button>
@@ -1807,7 +1786,7 @@ function openDetail(spot) {
     </div>
     <div class="detail-body">
       <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:10px;">日期時間</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">日期時間</div>
         <div class="detail-field-row"><span class="detail-field-label">日期</span><span style="font-size:1rem;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span></div>
         <div class="detail-field-row"><span class="detail-field-label">抵達</span><span style="font-size:1.0625rem;font-weight:700;color:var(--text);">${spot.arrive || '—'}</span></div>
         ${spot.stay ? `<div class="detail-field-row"><span class="detail-field-label">停留</span><span style="font-size:1rem;color:var(--gray-600);">${spot.stay}</span></div>` : ''}
@@ -1816,7 +1795,7 @@ function openDetail(spot) {
       ${spot.note ? `
       <div class="detail-section">
         <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">備注 & 筆記</div>
-        <div style="font-size:1rem;color:#37474f;line-height:1.7;white-space:pre-wrap;">${spot.note.replace(/</g,'&lt;')}</div>
+        <div style="font-size:1rem;color:#37474f;line-height:1.4;white-space:pre-wrap;">${spot.note.replace(/</g,'&lt;')}</div>
       </div>` : ''}
     </div>
   `;
@@ -1876,7 +1855,7 @@ function openDetailEdit() {
     <div class="detail-type-row" id="d-type-row">${typeBtns}</div>
     <div class="detail-body">
       <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">日期時間</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">日期時間</div>
         <div class="detail-field-row">
           <span class="detail-field-label">日期</span>
           <select id="d-day-select2" onchange="moveSpotToDay(this.value)" style="${fieldStyle}cursor:pointer;">${dayOptions}</select>
@@ -1903,27 +1882,27 @@ function openDetailEdit() {
         <div id="d-depart-hint" style="font-size:0.875rem;color:var(--gray-400);padding-left:4.625rem;margin-top:-4px;margin-bottom:2px;"></div>
       </div>
       <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">備注 & 筆記</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">備注 & 筆記</div>
         <textarea class="detail-field-textarea" id="d-note" placeholder="備注、注意事項、費用…" style="width:100%;" enterkeyhint="done" onblur="saveDetailData()">${spot.note||''}</textarea>
       </div>
       <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">地圖座標</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">地圖座標</div>
+        <div class="detail-geocode-row" style="margin-bottom:8px;">
+          <input class="detail-field-input" id="d-geocode-q" placeholder="輸入地名或地址" style="flex:1;" enterkeyhint="search" onkeydown="if(event.key==='Enter'){event.preventDefault();detailGeocode();}">
+          <button onclick="detailGeocode()" style="padding:8px 12px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;white-space:nowrap;">查詢</button>
+        </div>
+        <div class="detail-geocode-status" id="d-geocode-status"></div>
         <div class="detail-coord-row">
           <input class="detail-field-input" id="d-lat" value="${spot.lat??''}" placeholder="緯度" style="flex:1;" oninput="updateDetailCoordBtn()" onblur="saveDetailData()">
           <input class="detail-field-input" id="d-lng" value="${spot.lng??''}" placeholder="經度" style="flex:1;" oninput="updateDetailCoordBtn()" onblur="saveDetailData()">
         </div>
-        <button id="d-coord-preview-btn" onclick="detailPreviewCoord()" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:12px;font-family:inherit;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">在地圖上確認位置</button>
-        <div class="detail-geocode-row">
-          <input class="detail-field-input" id="d-geocode-q" placeholder="地名搜尋座標" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();detailGeocode();}">
-          <button onclick="detailGeocode()" style="padding:8px 12px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap;">查詢</button>
-        </div>
-        <div class="detail-geocode-status" id="d-geocode-status"></div>
+        <button id="d-coord-preview-btn" onclick="detailPreviewCoord()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">在地圖上確認位置</button>
       </div>
       <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:12px;">Google Map 連結</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">Google Map 連結</div>
         <input class="detail-field-input" id="d-mapurl" value="${spot.mapUrl||''}" placeholder="https://maps.app.goo.gl/..." style="width:100%;" enterkeyhint="done" onblur="saveDetailData()" onkeydown="if(event.key==='Enter'){this.blur();}">
       </div>
-      <div class="detail-section">
+      <div class="detail-section" style="border-bottom:none;">
         <button onclick="saveDetail()" id="detail-save-btn"
           style="width:100%;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer;transition:background 0.2s;margin-bottom:10px;"
           onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
@@ -2224,9 +2203,8 @@ function showListView() {
     if (!dragging || !isMobile()) return;
     e.preventDefault();
     const dy = startY - e.touches[0].clientY;
-    const newH = Math.max(120, Math.min(window.innerHeight * 0.85, startH + dy));
+    const newH = Math.max(100, Math.min(window.innerHeight * 0.90, startH + dy));
     panel.style.height = newH + 'px';
-    panel.classList.toggle('expanded', newH > window.innerHeight * 0.5);
   }, { passive: false });
 
   document.addEventListener('touchend', () => {
@@ -2235,23 +2213,23 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    if (h > vh * 0.5) {
-      panel.style.height = (vh * 0.85) + 'px';
-      panel.classList.add('expanded');
-    } else {
-      panel.style.height = (vh * 0.42) + 'px';
-      panel.classList.remove('expanded');
-    }
+    const s30 = vh * 0.30, s60 = vh * 0.60, s90 = vh * 0.90;
+    let target, cls;
+    if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
+    else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }
+    else { target = s90; cls = 'expanded'; }
+    panel.style.height = target + 'px';
+    panel.className = cls;
   });
 
-  // Mobile swipe left/right to change day
-  const body = document.getElementById('panel-body');
+  // Swipe left/right — list view only
+  const listView = document.getElementById('list-view');
   let swipeStartX = 0, swipeStartY = 0;
-  body.addEventListener('touchstart', e => {
+  listView.addEventListener('touchstart', e => {
     swipeStartX = e.touches[0].clientX;
     swipeStartY = e.touches[0].clientY;
   }, { passive: true });
-  body.addEventListener('touchend', e => {
+  listView.addEventListener('touchend', e => {
     if (!isMobile()) return;
     const dx = e.changedTouches[0].clientX - swipeStartX;
     const dy = e.changedTouches[0].clientY - swipeStartY;
@@ -2451,14 +2429,101 @@ function onDrop(e, targetIdx) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   if (dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+  moveSpotInList(dragSrcIdx, targetIdx);
+}
+
+function moveSpotInList(fromIdx, toIdx) {
+  if (fromIdx === null || fromIdx === toIdx) return;
   const day = DAYS[currentDay];
-  const [moved] = day.spots.splice(dragSrcIdx, 1);
-  day.spots.splice(targetIdx, 0, moved);
+  const [moved] = day.spots.splice(fromIdx, 1);
+  day.spots.splice(toIdx, 0, moved);
   recalcFromSpot(currentDay, 0);
   saveToStorage();
   renderList();
   renderMap(currentDay);
 }
+
+// ===== TOUCH DRAG SORT =====
+(function() {
+  let touchDragIdx = null, touchClone = null, lastOverIdx = null;
+
+  document.addEventListener('touchstart', (e) => {
+    const item = e.target.closest('.spot-item');
+    if (!item || e.target.closest('button, a, input, textarea, .spot-menu-wrap')) return;
+    const idx = parseInt(item.dataset.idx);
+    if (isNaN(idx)) return;
+
+    // Long press to activate drag (400ms)
+    item._longPressTimer = setTimeout(() => {
+      touchDragIdx = idx;
+      item.classList.add('dragging');
+
+      // Create a visual clone
+      const rect = item.getBoundingClientRect();
+      touchClone = item.cloneNode(true);
+      touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;pointer-events:none;z-index:9999;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);`;
+      document.body.appendChild(touchClone);
+
+      // Vibrate if supported
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 400);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    const item = e.target.closest('.spot-item');
+    if (item && item._longPressTimer) {
+      clearTimeout(item._longPressTimer);
+      item._longPressTimer = null;
+    }
+    if (touchDragIdx === null || !touchClone) return;
+
+    const touch = e.touches[0];
+
+    // Move clone
+    touchClone.style.top = (touch.clientY - touchClone.offsetHeight / 2) + 'px';
+
+    // Find item under finger
+    touchClone.style.display = 'none';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    touchClone.style.display = '';
+    const overItem = el?.closest('.spot-item');
+    if (overItem) {
+      const overIdx = parseInt(overItem.dataset.idx);
+      if (!isNaN(overIdx) && overIdx !== lastOverIdx) {
+        document.querySelectorAll('.spot-item.drag-over').forEach(i => i.classList.remove('drag-over'));
+        overItem.classList.add('drag-over');
+        lastOverIdx = overIdx;
+      }
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    // Cancel long press
+    const item = e.target.closest('.spot-item');
+    if (item?._longPressTimer) {
+      clearTimeout(item._longPressTimer);
+      item._longPressTimer = null;
+    }
+
+    if (touchDragIdx === null) return;
+
+    const touch = e.changedTouches[0];
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    document.querySelectorAll('.spot-item.dragging, .spot-item.drag-over').forEach(i => {
+      i.classList.remove('dragging', 'drag-over');
+    });
+
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const overItem = el?.closest('.spot-item');
+    if (overItem) {
+      const overIdx = parseInt(overItem.dataset.idx);
+      if (!isNaN(overIdx)) moveSpotInList(touchDragIdx, overIdx);
+    }
+
+    touchDragIdx = null;
+    lastOverIdx = null;
+  });
+})();
 
 // ===== NEW SPOT MODAL =====
 let newSpotType = 'sight';

@@ -290,13 +290,11 @@
   /* Top-right corner buttons on card */
   .spot-corner-btns {
     position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
+    top: 0.75rem;
+    right: 0.625rem;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding-right: 0.625rem;
     z-index: 2;
   }
   .spot-map-btn {
@@ -716,7 +714,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 70dvh;
+      height: 40dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -727,7 +725,7 @@
       overflow: hidden;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.mid { height: 70dvh; }
+    #panel.mid { height: 40dvh; }
     #panel.expanded { height: 95dvh; }
     #panel-header { padding: 0 16px; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     #drag-zone { cursor: grab; }
@@ -1432,17 +1430,33 @@ function renderMap(dayIdx) {
 }
 
 function focusMapMarker(spotId) {
-  // Remove focus from all pins
   document.querySelectorAll('.custom-pin.focused').forEach(el => el.classList.remove('focused'));
+
+  // Find focused index
+  const day = DAYS[currentDay];
+  const focusedIdx = spotId
+    ? day.spots.findIndex(s => s.id === spotId)
+    : -1;
+
+  // Set z-index for all markers based on proximity to focused
+  day.spots.forEach((spot, i) => {
+    const m = spotMarkers[spot.id];
+    if (!m || !m._icon) return;
+    if (spot.id === spotId) {
+      m.setZIndexOffset(10000);
+    } else if (focusedIdx >= 0) {
+      // Closer index to focused = higher z-index
+      const dist = Math.abs(i - focusedIdx);
+      m.setZIndexOffset(1000 - dist * 10);
+    } else {
+      // No focus: higher index = higher z-index
+      m.setZIndexOffset(i * 10);
+    }
+  });
+
   if (!spotId) return;
-  // Find the pin element by data-spotid
   const pinEl = document.querySelector(`.custom-pin[data-spotid="${spotId}"]`);
-  if (pinEl) {
-    pinEl.classList.add('focused');
-    // Bring marker's pane to front via z-index
-    const marker = spotMarkers[spotId];
-    if (marker && marker._icon) marker._icon.style.zIndex = 999;
-  }
+  if (pinEl) pinEl.classList.add('focused');
 }
 
 // ===== TABS =====
@@ -1475,6 +1489,65 @@ function switchToOverview() {
   document.getElementById('detail-view').classList.add('hidden-right');
   document.getElementById('overview-view').classList.remove('hidden-right');
   document.getElementById('overview-view').classList.remove('hidden-left');
+  focusMapMarker(null);
+  renderOverviewMap();
+}
+
+function renderOverviewMap() {
+  // Clear existing markers and lines
+  markers.forEach(m => map.removeLayer(m));
+  routeLines.forEach(l => map.removeLayer(l));
+  markers = [];
+  routeLines = [];
+  spotMarkers = {};
+
+  const allCoords = [];
+
+  DAYS.forEach(day => {
+    const dayCoords = day.spots
+      .filter(s => s.lat != null && s.lng != null)
+      .map(s => [s.lat, s.lng]);
+
+    // Route line per day
+    if (dayCoords.length > 1) {
+      const line = L.polyline(dayCoords, {
+        color: '#0077b6', weight: 2, opacity: 0.35, dashArray: '5, 7'
+      }).addTo(map);
+      routeLines.push(line);
+    }
+
+    // Small dots only (no labels)
+    day.spots.forEach(spot => {
+      if (spot.lat == null || spot.lng == null) return;
+      allCoords.push([spot.lat, spot.lng]);
+      const typeClass = spot.type === 'food' ? 'food' : spot.type === 'hotel' ? 'hotel' : '';
+      const icon = L.divIcon({
+        html: `<div class="custom-pin ${typeClass}" data-spotid="${spot.id}" style="width:14px;height:14px;border-width:2px;"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 14],
+        className: ''
+      });
+      const m = L.marker([spot.lat, spot.lng], { icon }).addTo(map);
+      m.on('click', () => openDetail(spot));
+      markers.push(m);
+      spotMarkers[spot.id] = m;
+    });
+  });
+
+  // Fit bounds to all spots
+  if (allCoords.length >= 2) {
+    const bounds = L.latLngBounds(allCoords);
+    const isMobile = window.innerWidth <= 768;
+    const panelH = isMobile ? document.getElementById('panel').offsetHeight : 0;
+    map.flyToBounds(bounds, {
+      paddingTopLeft: [30, 30],
+      paddingBottomRight: [30, panelH + 30],
+      duration: 0.8,
+      easeLinearity: 0.25
+    });
+  } else if (allCoords.length === 1) {
+    map.flyTo(allCoords[0], 12, { duration: 0.8 });
+  }
 }
 
 function switchDay(idx) {
@@ -1486,18 +1559,38 @@ function switchDay(idx) {
   document.getElementById('overview-view').classList.add('hidden-right');
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
-  focusMapMarker(null); // clear any existing focus
+  focusMapMarker(null);
 
-  // Pan map to first spot with coords
-  const firstSpot = DAYS[idx].spots.find(s => s.lat != null && s.lng != null);
-  if (firstSpot) {
+  // Fit map to show all spots of the day
+  const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
+  if (spotsWithCoords.length >= 2) {
+    const bounds = L.latLngBounds(spotsWithCoords.map(s => [s.lat, s.lng]));
     const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      map.setView([firstSpot.lat, firstSpot.lng], 14, { animate: true });
-      const panelH = document.getElementById('panel').offsetHeight;
-      map.panBy([0, panelH / 2], { animate: false });
+    const panelH = isMobile ? document.getElementById('panel').offsetHeight : 0;
+    const padOptions = { paddingTopLeft: [20, 20], paddingBottomRight: [20, panelH + 20] };
+    const targetZoom = map.getBoundsZoom(bounds, false, L.point(
+      20 + 20, 20 + panelH + 20
+    ));
+    const currentZoom = map.getZoom();
+
+    if (targetZoom > currentZoom) {
+      // Need to zoom in: pan to center first, then zoom in
+      const center = bounds.getCenter();
+      map.flyTo(center, currentZoom, { duration: 0.5, easeLinearity: 0.3 });
+      setTimeout(() => {
+        map.flyToBounds(bounds, { ...padOptions, duration: 0.6, easeLinearity: 0.25 });
+      }, 550);
     } else {
-      map.setView([firstSpot.lat, firstSpot.lng], 14, { animate: true });
+      // Need to zoom out or same: flyToBounds directly
+      map.flyToBounds(bounds, { ...padOptions, duration: 0.7, easeLinearity: 0.25 });
+    }
+  } else if (spotsWithCoords.length === 1) {
+    const s = spotsWithCoords[0];
+    const isMobile = window.innerWidth <= 768;
+    map.setView([s.lat, s.lng], 14, { animate: false });
+    if (isMobile) {
+      const panelH = document.getElementById('panel').offsetHeight;
+      map.panBy([0, panelH / 2], { animate: true, duration: 0.5 });
     }
   }
 }
@@ -1787,9 +1880,9 @@ function openDetail(spot) {
       </div>
     </div>
     <div class="detail-hero">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div class="detail-name-display" style="flex:1;">${spot.name}</div>
-        <div class="spot-menu-wrap" style="flex-shrink:0;margin-top:4px;">
+        <div class="spot-menu-wrap" style="flex-shrink:0;">
           <button class="spot-menu-btn" style="width:32px;height:32px;" onclick="toggleSpotMenu('detail-action-menu',event)"><iconify-icon icon="si:more-vert-duotone" style="font-size:1.5rem;pointer-events:none;"></iconify-icon></button>
           <div class="spot-menu-dropdown" id="detail-action-menu">
             <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');openDetailEdit()">編輯</button>
@@ -1798,19 +1891,17 @@ function openDetail(spot) {
           </div>
         </div>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+        ${spot.arrive ? `<span style="font-size:1.2rem;font-weight:700;color:var(--text);">${spot.arrive}</span>` : ''}
+        ${spot.stay ? `<span style="font-size:0.9375rem;color:var(--gray-400);">· ${spot.stay}</span>` : ''}
+        ${depart ? `<span style="font-size:0.9375rem;color:var(--gray-400);">→ ${depart}</span>` : ''}
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
         ${navBtnHtml}
         ${viewBtnHtml}
       </div>
     </div>
     <div class="detail-body">
-      <div class="detail-section">
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">日期時間</div>
-        <div class="detail-field-row"><span class="detail-field-label">日期</span><span style="font-size:1rem;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span></div>
-        <div class="detail-field-row"><span class="detail-field-label">抵達</span><span style="font-size:1.0625rem;font-weight:700;color:var(--text);">${spot.arrive || '—'}</span></div>
-        ${spot.stay ? `<div class="detail-field-row"><span class="detail-field-label">停留</span><span style="font-size:1rem;color:var(--gray-600);">${spot.stay}</span></div>` : ''}
-        ${depart ? `<div class="detail-field-row"><span class="detail-field-label">離開</span><span style="font-size:1rem;color:var(--gray-600);">${depart}</span></div>` : ''}
-      </div>
       ${spot.note ? `
       <div class="detail-section">
         <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">備注 & 筆記</div>
@@ -1825,12 +1916,15 @@ function openDetail(spot) {
   if (spot.lat != null && spot.lng != null) {
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-      // First center normally, then shift up by panel height / 2 in pixels
-      map.setView([spot.lat, spot.lng], 15, { animate: false });
       const panelH = document.getElementById('panel').offsetHeight;
-      map.panBy([0, panelH / 2], { animate: true });
+      // Convert spot to pixel, shift up by half panel height, convert back to latlng
+      const targetZoom = 15;
+      const spotPx = map.project([spot.lat, spot.lng], targetZoom);
+      const offsetPx = L.point(spotPx.x, spotPx.y + panelH / 2);
+      const offsetLatLng = map.unproject(offsetPx, targetZoom);
+      map.flyTo(offsetLatLng, targetZoom, { duration: 0.9, easeLinearity: 0.25 });
     } else {
-      map.setView([spot.lat, spot.lng], 15, { animate: true });
+      map.flyTo([spot.lat, spot.lng], 15, { duration: 0.9, easeLinearity: 0.25 });
     }
   }
   setTimeout(() => focusMapMarker(spot.id), 50);
@@ -2020,7 +2114,30 @@ function navigateDetail(dir) {
   const total = DAYS[day].spots.length;
   if (total === 0) return;
   const newIdx = (idx + dir + total) % total;
-  openDetail(DAYS[day].spots[newIdx]);
+  const fromSpot = DAYS[day].spots[idx];
+  const toSpot = DAYS[day].spots[newIdx];
+
+  if (fromSpot.lat != null && toSpot.lat != null) {
+    const isMobile = window.innerWidth <= 768;
+    const padPx = isMobile ? 80 : 100;
+    const currentBounds = map.getBounds();
+    const bothVisible = currentBounds.contains([fromSpot.lat, fromSpot.lng]) &&
+                        currentBounds.contains([toSpot.lat, toSpot.lng]);
+
+    if (bothVisible) {
+      // Both already visible — just open new detail directly
+      openDetail(toSpot);
+    } else {
+      const bounds = L.latLngBounds(
+        [fromSpot.lat, fromSpot.lng],
+        [toSpot.lat, toSpot.lng]
+      );
+      map.flyToBounds(bounds, { padding: [padPx, padPx], duration: 0.9, easeLinearity: 0.25 });
+      setTimeout(() => { openDetail(toSpot); }, 1050);
+    }
+  } else {
+    openDetail(toSpot);
+  }
 }
 
 
@@ -2232,7 +2349,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.35, s60 = vh * 0.70, s90 = vh * 0.95;
+    const s30 = vh * 0.40, s60 = vh * 0.70, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }

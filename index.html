@@ -725,7 +725,7 @@
       overflow: hidden;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.mid { height: 40dvh; }
+    #panel.mid { height: 70dvh; }
     #panel.expanded { height: 95dvh; }
     #panel-header { padding: 0 16px; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     #drag-zone { cursor: grab; }
@@ -1493,6 +1493,21 @@ function switchToOverview() {
   renderOverviewMap();
 }
 
+function getMobilePanelH() {
+  if (window.innerWidth > 768) return 0;
+  const panel = document.getElementById('panel');
+  // Use actual offsetHeight, fallback to 40dvh
+  return panel ? panel.offsetHeight : window.innerHeight * 0.40;
+}
+
+function getMapPadding(extra = 20) {
+  const ph = getMobilePanelH();
+  return {
+    paddingTopLeft: [extra, extra],
+    paddingBottomRight: [extra, ph + extra]
+  };
+}
+
 function renderOverviewMap() {
   // Clear existing markers and lines
   markers.forEach(m => map.removeLayer(m));
@@ -1534,17 +1549,9 @@ function renderOverviewMap() {
     });
   });
 
-  // Fit bounds to all spots
   if (allCoords.length >= 2) {
     const bounds = L.latLngBounds(allCoords);
-    const isMobile = window.innerWidth <= 768;
-    const panelH = isMobile ? document.getElementById('panel').offsetHeight : 0;
-    map.flyToBounds(bounds, {
-      paddingTopLeft: [30, 30],
-      paddingBottomRight: [30, panelH + 30],
-      duration: 0.8,
-      easeLinearity: 0.25
-    });
+    map.flyToBounds(bounds, { ...getMapPadding(30), duration: 0.8, easeLinearity: 0.25 });
   } else if (allCoords.length === 1) {
     map.flyTo(allCoords[0], 12, { duration: 0.8 });
   }
@@ -1561,36 +1568,34 @@ function switchDay(idx) {
   document.getElementById('detail-view').classList.add('hidden-right');
   focusMapMarker(null);
 
-  // Fit map to show all spots of the day
   const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
   if (spotsWithCoords.length >= 2) {
     const bounds = L.latLngBounds(spotsWithCoords.map(s => [s.lat, s.lng]));
-    const isMobile = window.innerWidth <= 768;
-    const panelH = isMobile ? document.getElementById('panel').offsetHeight : 0;
-    const padOptions = { paddingTopLeft: [20, 20], paddingBottomRight: [20, panelH + 20] };
-    const targetZoom = map.getBoundsZoom(bounds, false, L.point(
-      20 + 20, 20 + panelH + 20
-    ));
+    const padOptions = getMapPadding(20);
+    const ph = getMobilePanelH();
+    const targetZoom = map.getBoundsZoom(bounds, false, L.point(40, 40 + ph));
     const currentZoom = map.getZoom();
 
     if (targetZoom > currentZoom) {
-      // Need to zoom in: pan to center first, then zoom in
       const center = bounds.getCenter();
       map.flyTo(center, currentZoom, { duration: 0.5, easeLinearity: 0.3 });
       setTimeout(() => {
         map.flyToBounds(bounds, { ...padOptions, duration: 0.6, easeLinearity: 0.25 });
       }, 550);
     } else {
-      // Need to zoom out or same: flyToBounds directly
       map.flyToBounds(bounds, { ...padOptions, duration: 0.7, easeLinearity: 0.25 });
     }
   } else if (spotsWithCoords.length === 1) {
     const s = spotsWithCoords[0];
     const isMobile = window.innerWidth <= 768;
-    map.setView([s.lat, s.lng], 14, { animate: false });
     if (isMobile) {
-      const panelH = document.getElementById('panel').offsetHeight;
-      map.panBy([0, panelH / 2], { animate: true, duration: 0.5 });
+      const ph = getMobilePanelH();
+      const targetZoom = 14;
+      const spotPx = map.project([s.lat, s.lng], targetZoom);
+      const offsetPx = L.point(spotPx.x, spotPx.y + ph / 2);
+      map.flyTo(map.unproject(offsetPx, targetZoom), targetZoom, { duration: 0.7, easeLinearity: 0.25 });
+    } else {
+      map.flyTo([s.lat, s.lng], 14, { duration: 0.7 });
     }
   }
 }
@@ -2119,20 +2124,25 @@ function navigateDetail(dir) {
 
   if (fromSpot.lat != null && toSpot.lat != null) {
     const isMobile = window.innerWidth <= 768;
-    const padPx = isMobile ? 80 : 100;
+    const padPx = isMobile ? 60 : 80;
     const currentBounds = map.getBounds();
     const bothVisible = currentBounds.contains([fromSpot.lat, fromSpot.lng]) &&
                         currentBounds.contains([toSpot.lat, toSpot.lng]);
 
     if (bothVisible) {
-      // Both already visible — just open new detail directly
       openDetail(toSpot);
     } else {
       const bounds = L.latLngBounds(
         [fromSpot.lat, fromSpot.lng],
         [toSpot.lat, toSpot.lng]
       );
-      map.flyToBounds(bounds, { padding: [padPx, padPx], duration: 0.9, easeLinearity: 0.25 });
+      const ph = getMobilePanelH();
+      map.flyToBounds(bounds, {
+        paddingTopLeft: [padPx, padPx],
+        paddingBottomRight: [padPx, ph + padPx],
+        duration: 0.9,
+        easeLinearity: 0.25
+      });
       setTimeout(() => { openDetail(toSpot); }, 1050);
     }
   } else {

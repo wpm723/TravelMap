@@ -711,7 +711,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 42dvh;
+      height: 65dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -1041,7 +1041,7 @@
     </div>
   </div>
   <div class="projects-list" id="projects-list"></div>
-  <button class="projects-add-btn" onclick="createProjectDirect()">＋ 新增行程</button>
+  <button class="projects-add-btn" onclick="openNewProjectModal()">＋ 新增行程</button>
 </div>
 
 <!-- New Project Modal -->
@@ -1820,7 +1820,7 @@ function renderList() {
     }
   });
 
-  html += `<button class="add-spot-btn" onclick="openNewSpotModal()">＋ 新增景點</button>`;
+  html += `<button class="add-spot-btn" onclick="addSpotDirect()">＋ 新增景點</button>`;
 
   container.innerHTML = html;
 }
@@ -2777,6 +2777,31 @@ function selectNewType(type) {
     document.getElementById(`ns-type-${t}`).classList.toggle('selected', t === type);
   });
 }
+
+function addSpotDirect() {
+  const day = DAYS[currentDay];
+  const newSpot = {
+    id: 'spot_' + Date.now(),
+    name: '新景點',
+    type: 'sight',
+    arrive: '', stay: '', note: '',
+    mapUrl: '', lat: null, lng: null,
+    parkingLat: null, parkingLng: null
+  };
+  day.spots.push(newSpot);
+  if (!day.transports) day.transports = [];
+  if (day.spots.length > 1) day.transports.push({ mode: '🚶 步行', time: '10分' });
+  recalcFromSpot(currentDay, day.spots.length - 1);
+  saveToStorage();
+  renderList();
+  renderMap(currentDay);
+  // Open edit page for new spot
+  detailTarget = { day: currentDay, idx: day.spots.length - 1 };
+  openDetailEdit();
+  document.getElementById('list-view').classList.add('hidden-left');
+  document.getElementById('detail-view').classList.remove('hidden-right');
+}
+
 
 function openNewSpotModal() {
   newSpotType = 'sight';

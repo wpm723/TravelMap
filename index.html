@@ -292,10 +292,11 @@
     position: absolute;
     top: 0;
     right: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 0.75rem 0.625rem 0 0;
+    padding-right: 0.625rem;
     z-index: 2;
   }
   .spot-map-btn {
@@ -574,6 +575,8 @@
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 0.3rem;
+    width: 100%;
+    box-sizing: border-box;
   }
   .detail-field-row:last-child { margin-bottom: 0; }
   .detail-field-label {
@@ -584,6 +587,7 @@
   }
   .detail-field-input {
     flex: 1;
+    min-width: 0;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--gray-200);
     border-radius: 8px;
@@ -593,6 +597,7 @@
     background: var(--gray-100);
     color: var(--text);
     transition: border-color 0.2s, background 0.2s;
+    box-sizing: border-box;
   }
   .detail-field-input:focus { border-color: var(--ocean); background: #fff; }
   .detail-field-textarea {
@@ -711,8 +716,8 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 30dvh;
-      max-height: 90dvh;
+      height: 35dvh;
+      max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
       z-index: 200;
@@ -722,8 +727,8 @@
       overflow: hidden;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #panel.mid { height: 60dvh; }
-    #panel.expanded { height: 90dvh; }
+    #panel.mid { height: 65dvh; }
+    #panel.expanded { height: 95dvh; }
     #panel-header { padding: 0 16px; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     #drag-zone { cursor: grab; }
     .trip-name { font-size: 15px; margin-bottom: 0; }
@@ -1481,6 +1486,20 @@ function switchDay(idx) {
   document.getElementById('overview-view').classList.add('hidden-right');
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
+  focusMapMarker(null); // clear any existing focus
+
+  // Pan map to first spot with coords
+  const firstSpot = DAYS[idx].spots.find(s => s.lat != null && s.lng != null);
+  if (firstSpot) {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      map.setView([firstSpot.lat, firstSpot.lng], 14, { animate: true });
+      const panelH = document.getElementById('panel').offsetHeight;
+      map.panBy([0, panelH / 2], { animate: false });
+    } else {
+      map.setView([firstSpot.lat, firstSpot.lng], 14, { animate: true });
+    }
+  }
 }
 
 // ===== TIMEZONE =====
@@ -2203,7 +2222,7 @@ function showListView() {
     if (!dragging || !isMobile()) return;
     e.preventDefault();
     const dy = startY - e.touches[0].clientY;
-    const newH = Math.max(100, Math.min(window.innerHeight * 0.90, startH + dy));
+    const newH = Math.max(100, Math.min(window.innerHeight * 0.95, startH + dy));
     panel.style.height = newH + 'px';
   }, { passive: false });
 
@@ -2213,7 +2232,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.30, s60 = vh * 0.60, s90 = vh * 0.90;
+    const s30 = vh * 0.35, s60 = vh * 0.65, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }

@@ -1429,8 +1429,13 @@ function renderMap(dayIdx) {
   map.setView(day.center, day.zoom, { animate: true });
 }
 
+let parkingMarker = null;
+
 function focusMapMarker(spotId) {
   document.querySelectorAll('.custom-pin.focused').forEach(el => el.classList.remove('focused'));
+
+  // Remove previous parking marker
+  if (parkingMarker) { map.removeLayer(parkingMarker); parkingMarker = null; }
 
   // Find focused index
   const day = DAYS[currentDay];
@@ -1445,11 +1450,9 @@ function focusMapMarker(spotId) {
     if (spot.id === spotId) {
       m.setZIndexOffset(10000);
     } else if (focusedIdx >= 0) {
-      // Closer index to focused = higher z-index
       const dist = Math.abs(i - focusedIdx);
       m.setZIndexOffset(1000 - dist * 10);
     } else {
-      // No focus: higher index = higher z-index
       m.setZIndexOffset(i * 10);
     }
   });
@@ -1457,6 +1460,21 @@ function focusMapMarker(spotId) {
   if (!spotId) return;
   const pinEl = document.querySelector(`.custom-pin[data-spotid="${spotId}"]`);
   if (pinEl) pinEl.classList.add('focused');
+
+  // Show parking marker if this spot has parking coords
+  const focusedSpot = day.spots.find(s => s.id === spotId);
+  if (focusedSpot?.parkingLat != null && focusedSpot?.parkingLng != null) {
+    parkingMarker = L.marker([focusedSpot.parkingLat, focusedSpot.parkingLng], {
+      icon: L.divIcon({
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+        className: ''
+      }),
+      interactive: false,
+      zIndexOffset: 9000
+    }).addTo(map);
+  }
 }
 
 // ===== TABS =====
@@ -1492,6 +1510,24 @@ function switchToOverview() {
   focusMapMarker(null);
   renderOverviewMap();
 }
+
+function linkifyNote(text) {
+  if (!text) return '';
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Split by double newline (paragraph break), linkify each, join with paragraph spacing
+  const paragraphs = escaped.split(/\n{2,}/);
+  return paragraphs.map(para => {
+    // Within each paragraph, single newline → <br>
+    const withBr = para.replace(/\n/g, '<br>');
+    // Linkify
+    const linked = withBr.replace(
+      /(https?:\/\/[^\s\u3000\uff01-\uffee<]+)/g,
+      '<a href="$1" target="_blank" style="color:var(--ocean);text-decoration:underline;word-break:break-all;">$1</a>'
+    );
+    return `<p style="margin:0 0 0.75rem;">${linked}</p>`;
+  }).join('');
+}
+
 
 function getMobilePanelH() {
   if (window.innerWidth > 768) return 0;
@@ -1915,7 +1951,7 @@ function openDetail(spot) {
       ${spot.note ? `
       <div class="detail-section">
         <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">備注 & 筆記</div>
-        <div style="font-size:1rem;color:#37474f;line-height:1.4;white-space:pre-wrap;">${spot.note.replace(/</g,'&lt;')}</div>
+        <div style="font-size:1rem;color:#37474f;line-height:1.25;">${linkifyNote(spot.note)}</div>
       </div>` : ''}
     </div>
   `;

@@ -793,6 +793,11 @@
   .tz-jp { background: #e8f4fd; color: #0077b6; border: 1px solid #b8ddf5; }
   .tz-tw { background: #fff0ee; color: #c0392b; border: 1px solid #fdb8b0; }
 
+  /* Force 24h time picker, hide clock icon */
+  input[type="time"]::-webkit-datetime-edit-ampm-field { display: none; }
+  input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+  input[type="time"] { -webkit-appearance: none; appearance: none; }
+
   /* ===== ROUTE LINE ===== */
   .route-arrow { color: var(--ocean); }
 
@@ -1453,7 +1458,7 @@ function focusMapMarker(spotId) {
       const dist = Math.abs(i - focusedIdx);
       m.setZIndexOffset(1000 - dist * 10);
     } else {
-      m.setZIndexOffset(i * 10);
+      m.setZIndexOffset((day.spots.length - i) * 10);
     }
   });
 
@@ -1795,10 +1800,10 @@ function renderList() {
       html += `<div class="transport-row" onclick="toggleTransport('t${currentDay}-${i}')">
         <div style="width:28px;flex-shrink:0;"></div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="transport-badge" id="tb-${currentDay}-${i}">
-            <span class="transport-icon">${t.mode.split(' ')[0]}</span>
-            <span>${t.mode.replace(/^[^ ]+ ?/,'')}</span>
-            <span style="font-weight:600">${t.time}</span>
+          <div class="transport-badge" id="tb-${currentDay}-${i}" style="${!t.mode ? 'border-style:dashed;color:var(--gray-400);background:transparent;' : ''}">
+            ${t.mode
+              ? `<span class="transport-icon">${t.mode.split(' ')[0]}</span><span>${t.mode.replace(/^[^ ]+ ?/,'')}</span><span style="font-weight:600">${t.time}</span>`
+              : `<span style="font-size:0.875rem;">選擇移動方式</span>`}
             <span style="color:#aaa">▾</span>
           </div>
           ${tzHint}
@@ -1919,10 +1924,11 @@ function openDetail(spot) {
   view.innerHTML = `
     <div class="detail-back">
       <span onclick="showListView()" style="display:flex;align-items:center;cursor:pointer;padding:0 2px;color:var(--ocean);"><iconify-icon icon="tabler:arrow-left" style="font-size:1.5rem;"></iconify-icon></span>
-      <span style="flex:1;margin:0 8px;font-size:1rem;font-weight:600;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <button onclick="navigateDetail(-1)" style="${navBtnStyle}">‹ 前一個</button>
-        <button onclick="navigateDetail(1)" style="${navBtnStyle}">下一個 ›</button>
+      <span style="flex:1;margin:0 8px;font-size:0.9375rem;font-weight:600;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="navigateDetail(-1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
+        <span style="font-size:0.875rem;color:var(--gray-400);min-width:2rem;text-align:center;">${idx + 1} / ${DAYS[day].spots.length}</span>
+        <button onclick="navigateDetail(1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
       </div>
     </div>
     <div class="detail-hero">
@@ -1982,6 +1988,13 @@ function openDetailEdit() {
   const { day, idx } = detailTarget;
   const spot = DAYS[day].spots[idx];
   const depart = calcDepartTime(spot.arrive, spot.stay);
+  // Auto-fill arrive from prev spot's depart if this spot has no arrive
+  let autoArrive = '';
+  if (!spot.arrive && idx > 0) {
+    const prev = DAYS[day].spots[idx - 1];
+    const prevDepart = calcDepartTime(prev.arrive, prev.stay);
+    if (prevDepart) autoArrive = prevDepart.padStart(5, '0');
+  }
   const typeLabels = { sight:'景點', food:'餐廳', hotel:'住宿', transport:'交通', airport:'機場' };
   const types = ['sight','food','hotel','transport'];
   const typeBtns = types.map(t =>
@@ -2004,28 +2017,28 @@ function openDetailEdit() {
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">名稱</div>
         <input class="detail-field-input" id="d-name" value="${spot.name}" placeholder="景點名稱" style="width:100%;box-sizing:border-box;" enterkeyhint="done"
-          onblur="saveDetailData()" onkeydown="if(event.key==='Enter'){this.blur();}">
+          onkeydown="if(event.key==='Enter'){this.blur();}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;" id="d-type-row">${typeBtns}</div>
       </div>
 
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">日期時間</div>
         <select id="d-day-select2" onchange="moveSpotToDay(this.value)" style="${fs}width:100%;cursor:pointer;margin-bottom:8px;">${dayOptions}</select>
-        <div style="display:flex;gap:6px;align-items:center;width:100%;box-sizing:border-box;">
-          <input class="detail-field-input" id="d-arrive" value="${spot.arrive||''}" placeholder="抵達" inputmode="numeric" enterkeyhint="done"
-            style="flex:1;min-width:0;" oninput="updateDetailDepart()" onblur="saveDetailData()" onkeydown="if(event.key==='Enter'){this.blur();}">
+        <div style="display:flex;gap:6px;align-items:stretch;width:100%;box-sizing:border-box;">
+          <input type="time" class="detail-field-input" id="d-arrive" lang="zh-TW" data-format="24h" value="${spot.arrive ? spot.arrive.padStart(5,'0') : autoArrive}"
+            style="flex:2;min-width:0;height:2.625rem;" oninput="updateDetailDepart()">
           <select id="d-mode-sel" onchange="switchDetailMode(this.value==='depart'?'depart':'stay')"
-            style="flex:1.4;min-width:0;padding:0.5rem 0.4rem;border:1px solid var(--gray-200);border-radius:8px;font-size:0.875rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);cursor:pointer;box-sizing:border-box;">
+            style="flex:3;min-width:7rem;padding:0 0.4rem;height:2.625rem;border:1px solid var(--gray-200);border-radius:8px;font-size:0.875rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);cursor:pointer;box-sizing:border-box;">
             <option value="stay" ${detailDurMode==='stay'?'selected':''}>停留時長</option>
             <option value="depart" ${detailDurMode==='depart'?'selected':''}>指定離開時間</option>
           </select>
-          <div id="d-field-stay" style="flex:1;min-width:0;${detailDurMode==='depart'?'display:none;':''}">
+          <div id="d-field-stay" style="flex:2;min-width:0;${detailDurMode==='depart'?'display:none;':''}">
             <input class="detail-field-input" id="d-stay" value="${spot.stay||''}" placeholder="停留" enterkeyhint="done"
-              style="width:100%;box-sizing:border-box;" oninput="updateDetailDepart()" onblur="saveDetailData()" onkeydown="if(event.key==='Enter'){this.blur();}">
+              style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailDepart()" onkeydown="if(event.key==='Enter'){this.blur();}">
           </div>
-          <div id="d-field-depart" style="flex:1;min-width:0;${detailDurMode==='stay'?'display:none;':''}">
-            <input type="time" class="detail-field-input" id="d-depart-time" value="${depart?depart.padStart(5,'0'):''}" enterkeyhint="done"
-              style="width:100%;box-sizing:border-box;" oninput="updateDetailFromDepart()" onblur="saveDetailData()">
+          <div id="d-field-depart" style="flex:2;min-width:0;${detailDurMode==='stay'?'display:none;':''}">
+            <input type="time" class="detail-field-input" id="d-depart-time" lang="zh-TW" data-format="24h" value="${depart?depart.padStart(5,'0'):''}"
+              style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailFromDepart()">
           </div>
         </div>
         <div id="d-depart-hint" style="font-size:0.875rem;color:var(--gray-400);margin-top:4px;"></div>
@@ -2033,20 +2046,20 @@ function openDetailEdit() {
 
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">備注 &amp; 筆記</div>
-        <textarea class="detail-field-textarea" id="d-note" placeholder="備注、注意事項、費用…" style="width:100%;box-sizing:border-box;" enterkeyhint="done" onblur="saveDetailData()">${spot.note||''}</textarea>
+        <textarea class="detail-field-textarea" id="d-note" placeholder="備注、注意事項、費用…" style="width:100%;box-sizing:border-box;" enterkeyhint="done">${spot.note||''}</textarea>
       </div>
 
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">地點</div>
-        <input class="detail-field-input" id="d-mapurl" value="${spot.mapUrl||''}" placeholder="輸入 google map 網址" style="width:100%;box-sizing:border-box;margin-bottom:8px;" enterkeyhint="done" onblur="saveDetailData()" onkeydown="if(event.key==='Enter'){this.blur();}">
+        <input class="detail-field-input" id="d-mapurl" value="${spot.mapUrl||''}" placeholder="輸入 google map 網址" style="width:100%;box-sizing:border-box;margin-bottom:8px;" enterkeyhint="done" onkeydown="if(event.key==='Enter'){this.blur();}">
         <div class="detail-geocode-row" style="margin-bottom:8px;">
           <input class="detail-field-input" id="d-geocode-q" placeholder="輸入地名或地址" style="flex:1;min-width:0;" enterkeyhint="search" onkeydown="if(event.key==='Enter'){event.preventDefault();detailGeocode();}">
           <button onclick="detailGeocode()" style="padding:8px 12px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;white-space:nowrap;">查詢</button>
         </div>
         <div class="detail-geocode-status" id="d-geocode-status"></div>
         <div class="detail-coord-row">
-          <input class="detail-field-input" id="d-lat" value="${spot.lat??''}" placeholder="緯度" style="flex:1;min-width:0;" oninput="updateDetailCoordBtn()" onblur="saveDetailData()">
-          <input class="detail-field-input" id="d-lng" value="${spot.lng??''}" placeholder="經度" style="flex:1;min-width:0;" oninput="updateDetailCoordBtn()" onblur="saveDetailData()">
+          <input class="detail-field-input" id="d-lat" value="${spot.lat??''}" placeholder="緯度" style="flex:1;min-width:0;" oninput="updateDetailCoordBtn()">
+          <input class="detail-field-input" id="d-lng" value="${spot.lng??''}" placeholder="經度" style="flex:1;min-width:0;" oninput="updateDetailCoordBtn()">
         </div>
         <button id="d-coord-preview-btn" onclick="detailPreviewCoord()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">在地圖上確認位置</button>
       </div>
@@ -2058,17 +2071,22 @@ function openDetailEdit() {
           <button onclick="detailGeocodeParking()" style="padding:8px 12px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;white-space:nowrap;">查詢</button>
         </div>
         <div class="detail-coord-row">
-          <input class="detail-field-input" id="d-park-lat" value="${spot.parkingLat??''}" placeholder="緯度" style="flex:1;min-width:0;" onblur="saveDetailData()">
-          <input class="detail-field-input" id="d-park-lng" value="${spot.parkingLng??''}" placeholder="經度" style="flex:1;min-width:0;" onblur="saveDetailData()">
+          <input class="detail-field-input" id="d-park-lat" value="${spot.parkingLat??''}" placeholder="緯度" style="flex:1;min-width:0;">
+          <input class="detail-field-input" id="d-park-lng" value="${spot.parkingLng??''}" placeholder="經度" style="flex:1;min-width:0;">
         </div>
         <button onclick="detailPreviewParking()" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">在地圖上確認位置</button>
         <div class="detail-geocode-status" id="d-park-status"></div>
       </div>
 
       <div class="detail-section" style="border-bottom:none;">
-        <button onclick="saveDetail()" id="detail-save-btn"
-          style="width:100%;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;transition:background 0.2s;"
-          onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="openDetail(DAYS[detailTarget.day].spots[detailTarget.idx])"
+            style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;transition:all 0.2s;"
+            onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='#fff'">取消</button>
+          <button onclick="saveDetail()" id="detail-save-btn"
+            style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;transition:background 0.2s;"
+            onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
+        </div>
       </div>
     </div>
   `;
@@ -2301,11 +2319,15 @@ function duplicateSpot() {
 
 function deleteFromDetail() {
   if (!detailTarget) return;
+  const { day, idx } = detailTarget;
+  if (!confirm('確定要刪除這個景點嗎？')) return;
   DAYS[day].spots.splice(idx, 1);
-  if (idx > 0 && DAYS[day].transports.length >= idx) {
-    DAYS[day].transports.splice(idx - 1, 1);
-  } else if (idx === 0 && DAYS[day].transports.length > 0) {
-    DAYS[day].transports.splice(0, 1);
+  // Remove the adjacent transport: prefer the one before, else the one after
+  if (DAYS[day].transports.length > 0) {
+    const tIdx = idx > 0 ? idx - 1 : 0;
+    if (tIdx < DAYS[day].transports.length) {
+      DAYS[day].transports.splice(tIdx, 1);
+    }
   }
   recalcFromSpot(day, 0);
   saveToStorage();
@@ -2465,7 +2487,7 @@ function showListView() {
     }
   }, { passive: true });
 
-  // Swipe down at top of scrollable views → collapse panel one stage
+  // Swipe down at top → collapse; swipe up anywhere → expand to high
   const panelBody = document.getElementById('panel-body');
   let collapseStartY = 0, collapseStartScroll = 0;
   panelBody.addEventListener('touchstart', e => {
@@ -2476,12 +2498,15 @@ function showListView() {
   panelBody.addEventListener('touchend', e => {
     if (!isMobile()) return;
     const dy = e.changedTouches[0].clientY - collapseStartY;
-    // Only collapse if swiping down AND was already at top
-    if (dy > 50 && collapseStartScroll <= 0) {
-      const vh = window.innerHeight;
-      const s30 = vh * 0.42, s60 = vh * 0.65, s90 = vh * 0.95;
-      const h = panel.offsetHeight;
-      panel.style.transition = '';
+    const vh = window.innerHeight;
+    const s30 = vh * 0.42, s60 = vh * 0.65, s90 = vh * 0.95;
+    const h = panel.offsetHeight;
+    panel.style.transition = '';
+    if (dy < -50) {
+      // Swipe up anywhere → expand to high
+      panel.style.height = s90 + 'px'; panel.className = 'expanded';
+    } else if (dy > 50 && collapseStartScroll <= 0) {
+      // Swipe down at top → collapse one stage
       if (h >= s90 * 0.85) {
         panel.style.height = s60 + 'px'; panel.className = 'mid';
       } else if (h >= s60 * 0.85) {
@@ -2780,22 +2805,29 @@ function selectNewType(type) {
 
 function addSpotDirect() {
   const day = DAYS[currentDay];
+
+  // Get previous spot's depart time as default arrive
+  let defaultArrive = '';
+  if (day.spots.length > 0) {
+    const prev = day.spots[day.spots.length - 1];
+    defaultArrive = calcDepartTime(prev.arrive, prev.stay) || '';
+  }
+
   const newSpot = {
     id: 'spot_' + Date.now(),
     name: '新景點',
     type: 'sight',
-    arrive: '', stay: '', note: '',
+    arrive: defaultArrive, stay: '', note: '',
     mapUrl: '', lat: null, lng: null,
     parkingLat: null, parkingLng: null
   };
   day.spots.push(newSpot);
   if (!day.transports) day.transports = [];
-  if (day.spots.length > 1) day.transports.push({ mode: '🚶 步行', time: '10分' });
+  if (day.spots.length > 1) day.transports.push({ mode: '', time: '' }); // empty = guide user
   recalcFromSpot(currentDay, day.spots.length - 1);
   saveToStorage();
   renderList();
   renderMap(currentDay);
-  // Open edit page for new spot
   detailTarget = { day: currentDay, idx: day.spots.length - 1 };
   openDetailEdit();
   document.getElementById('list-view').classList.add('hidden-left');

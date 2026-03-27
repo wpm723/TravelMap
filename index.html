@@ -1041,7 +1041,7 @@
     </div>
   </div>
   <div class="projects-list" id="projects-list"></div>
-  <button class="projects-add-btn" onclick="openNewProjectModal()">＋ 新增行程</button>
+  <button class="projects-add-btn" onclick="createProjectDirect()">＋ 新增行程</button>
 </div>
 
 <!-- New Project Modal -->
@@ -2464,6 +2464,31 @@ function showListView() {
       else if (dx > 0 && currentDay > 0) switchDay(currentDay - 1);
     }
   }, { passive: true });
+
+  // Swipe down at top of scrollable views → collapse panel one stage
+  const panelBody = document.getElementById('panel-body');
+  let collapseStartY = 0, collapseStartScroll = 0;
+  panelBody.addEventListener('touchstart', e => {
+    const view = panelBody.querySelector('.panel-view:not(.hidden-left):not(.hidden-right)');
+    collapseStartY = e.touches[0].clientY;
+    collapseStartScroll = view ? view.scrollTop : 0;
+  }, { passive: true });
+  panelBody.addEventListener('touchend', e => {
+    if (!isMobile()) return;
+    const dy = e.changedTouches[0].clientY - collapseStartY;
+    // Only collapse if swiping down AND was already at top
+    if (dy > 50 && collapseStartScroll <= 0) {
+      const vh = window.innerHeight;
+      const s30 = vh * 0.42, s60 = vh * 0.65, s90 = vh * 0.95;
+      const h = panel.offsetHeight;
+      panel.style.transition = '';
+      if (h >= s90 * 0.85) {
+        panel.style.height = s60 + 'px'; panel.className = 'mid';
+      } else if (h >= s60 * 0.85) {
+        panel.style.height = s30 + 'px'; panel.className = '';
+      }
+    }
+  }, { passive: true });
 })();
 
 // ===== OVERVIEW =====
@@ -2504,20 +2529,12 @@ function renderOverview() {
 
       <div style="margin-bottom:18px;">
         <div class="detail-section-title" style="margin-bottom:8px;">旅行日期</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-          <span style="${labelStyle}">出發日期</span>
+        <div style="display:flex;align-items:center;gap:8px;">
           <input type="date" id="ov-start-date" value="${TRIP_META.startDate}"
-            style="${fieldStyle}" oninput="onDateChange()">
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <span style="${labelStyle}">返程日期</span>
+            style="${fieldStyle}flex:1;" oninput="onDateChange()">
+          <span style="color:var(--gray-400);flex-shrink:0;">→</span>
           <input type="date" id="ov-end-date" value="${TRIP_META.endDate}"
-            style="${fieldStyle}" oninput="onDateChange()">
-        </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:9px 14px;font-size:0.875rem;color:var(--gray-600);display:flex;gap:16px;flex-wrap:wrap;">
-          <span>🗓 ${totalDays} 天 ${nights} 夜</span>
-          <span>✈️ ${DAYS[0].date} 出發</span>
-          <span>🏠 ${DAYS[totalDays-1].date} 返程</span>
+            style="${fieldStyle}flex:1;" oninput="onDateChange()">
         </div>
       </div>
 
@@ -2962,6 +2979,22 @@ function closeNewProjectModal() {
 document.getElementById('new-project-modal').addEventListener('click', function(e) {
   if (e.target === this) closeNewProjectModal();
 });
+
+async function createProjectDirect() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { alert('請先登入'); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const newDays = Array.from({ length: 1 }, (_, i) => ({
+    label: `Day ${i+1}`, date: '', spots: [], transports: [], center: [26.2, 127.7], zoom: 12
+  }));
+  const meta = { tripName: '未命名行程', tripSubtitle: '', startDate: today, endDate: today, note: '' };
+  const { data, error } = await sb.from('projects').insert({
+    name: '未命名行程', user_id: session.user.id, data: { meta, days: newDays }
+  }).select().single();
+  if (error) { alert('建立失敗：' + error.message); return; }
+  await loadProject(data.id, data);
+  switchToOverview();
+}
 
 async function createProject() {
   const name = document.getElementById('np-name').value.trim();

@@ -711,7 +711,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 65dvh;
+      height: 40dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -1080,7 +1080,7 @@
   <div id="map-container">
     <div id="map"></div>
   </div>
-  <div id="panel">
+  <div id="panel" class="mid">
     <div id="panel-header">
       <div id="drag-handle"></div>
       <div id="drag-zone" style="padding-bottom:4px;">
@@ -1513,6 +1513,7 @@ function switchToOverview() {
   document.getElementById('overview-view').classList.remove('hidden-right');
   document.getElementById('overview-view').classList.remove('hidden-left');
   focusMapMarker(null);
+  document.getElementById('panel');
   renderOverviewMap();
 }
 
@@ -1609,6 +1610,7 @@ function switchDay(idx) {
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
   focusMapMarker(null);
+  document.getElementById('panel');
   document.getElementById('list-view').scrollTop = 0;
 
   const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
@@ -1965,6 +1967,7 @@ function openDetail(spot) {
   const listView = document.getElementById('list-view');
   listView.classList.add('hidden-left');
   view.classList.remove('hidden-right');
+  document.getElementById('panel');
   if (spot.lat != null && spot.lng != null) {
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
@@ -2423,6 +2426,7 @@ function saveDetail() {
 function showListView() {
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
+  document.getElementById('panel');
   focusMapMarker(null);
 }
 
@@ -2461,7 +2465,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.42, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.40, s60 = vh * 0.65, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }
@@ -2487,33 +2491,43 @@ function showListView() {
     }
   }, { passive: true });
 
-  // Swipe down at top → collapse; swipe up anywhere → expand to high
+  // Expand-first-then-scroll (Google Maps style)
   const panelBody = document.getElementById('panel-body');
-  let collapseStartY = 0, collapseStartScroll = 0;
+  let collapseStartY = 0, collapseStartScroll = 0, expandHandled = false;
+
   panelBody.addEventListener('touchstart', e => {
     const view = panelBody.querySelector('.panel-view:not(.hidden-left):not(.hidden-right)');
     collapseStartY = e.touches[0].clientY;
     collapseStartScroll = view ? view.scrollTop : 0;
+    expandHandled = false;
   }, { passive: true });
-  panelBody.addEventListener('touchend', e => {
-    if (!isMobile()) return;
-    const dy = e.changedTouches[0].clientY - collapseStartY;
+
+  panelBody.addEventListener('touchmove', e => {
+    if (!isMobile() || expandHandled) return;
+    const dy = e.touches[0].clientY - collapseStartY;
     const vh = window.innerHeight;
-    const s30 = vh * 0.42, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.40, s60 = vh * 0.65, s90 = vh * 0.95;
     const h = panel.offsetHeight;
-    panel.style.transition = '';
-    if (dy < -50) {
-      // Swipe up anywhere → expand to high
-      panel.style.height = s90 + 'px'; panel.className = 'expanded';
-    } else if (dy > 50 && collapseStartScroll <= 0) {
-      // Swipe down at top → collapse one stage
+
+    if (dy < -10 && h < s90 * 0.98) {
+      // Swiping up and not yet expanded → expand panel, block scroll
+      e.preventDefault();
+      panel.style.transition = '';
+      panel.style.height = s90 + 'px';
+      panel.className = 'expanded';
+      expandHandled = true;
+    } else if (dy > 10 && collapseStartScroll <= 0 && h > s30 * 1.02) {
+      // Swiping down at top → collapse one stage
+      e.preventDefault();
+      panel.style.transition = '';
       if (h >= s90 * 0.85) {
         panel.style.height = s60 + 'px'; panel.className = 'mid';
       } else if (h >= s60 * 0.85) {
         panel.style.height = s30 + 'px'; panel.className = '';
       }
+      expandHandled = true;
     }
-  }, { passive: true });
+  }, { passive: false });
 })();
 
 // ===== OVERVIEW =====
@@ -2526,13 +2540,13 @@ function renderOverview() {
   const labelStyle = `font-size:0.875rem;color:var(--gray-400);flex-shrink:0;width:4.5rem;`;
 
   const dayRows = DAYS.map((d, i) => `
-    <div onclick="switchDay(${i})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--gray-100);cursor:pointer;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
+    <div onclick="switchDay(${i})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;cursor:pointer;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
       <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--ocean);color:#fff;font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">${i+1}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:1rem;font-weight:600;color:var(--text);">${d.date}</div>
       </div>
       <div style="font-size:0.875rem;color:var(--gray-400);">${d.spots.length} 個景點</div>
-    </div>`).join('');
+    </div>${i < DAYS.length - 1 ? '<div style="height:1px;background:var(--gray-100);margin:0 6px;"></div>' : ''}`).join('');
 
   v.innerHTML = `
     <div class="day-info" style="border-bottom:1px solid var(--gray-200);">

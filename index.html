@@ -713,7 +713,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 25dvh;
+      height: 22dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -1911,7 +1911,7 @@ function saveTransportTime(day, idx) {
 // ===== DETAIL VIEW MODE =====
 let detailTarget = null;
 
-function openDetail(spot) {
+function openDetail(spot, skipMapAnim = false) {
   currentSpot = spot;
   let day = currentDay, idx = 0;
   for (let d = 0; d < DAYS.length; d++) {
@@ -1978,19 +1978,28 @@ function openDetail(spot) {
   view.classList.remove('hidden-right');
   currentView = 'detail';
   showDetailHeader(spot.name, true, idx, DAYS[day].spots.length);
-  document.getElementById('panel');
-  if (spot.lat != null && spot.lng != null) {
+  // If panel is at expanded stage, snap down to mid when entering detail
+  const panel = document.getElementById('panel');
+  if (panel.classList.contains('expanded')) {
+    panel.style.height = '';
+    panel.className = 'mid';
+  }
+  if (!skipMapAnim && spot.lat != null && spot.lng != null) {
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-      const panelH = document.getElementById('panel').offsetHeight;
-      // Convert spot to pixel, shift up by half panel height, convert back to latlng
+      // Use target panel height based on current class (avoids transition timing issues)
+      const panelClass = panel.className;
+      const vh = window.innerHeight;
+      const panelH = panelClass === 'expanded' ? vh * 0.95
+                   : panelClass === 'mid'      ? vh * 0.55
+                   : vh * 0.22;
       const targetZoom = 15;
       const spotPx = map.project([spot.lat, spot.lng], targetZoom);
       const offsetPx = L.point(spotPx.x, spotPx.y + panelH / 2);
       const offsetLatLng = map.unproject(offsetPx, targetZoom);
-      map.flyTo(offsetLatLng, targetZoom, { duration: 0.9, easeLinearity: 0.25 });
+      map.flyTo(offsetLatLng, targetZoom, { duration: 1.1, easeLinearity: 0.2 });
     } else {
-      map.flyTo([spot.lat, spot.lng], 15, { duration: 0.9, easeLinearity: 0.25 });
+      map.flyTo([spot.lat, spot.lng], 15, { duration: 1.1, easeLinearity: 0.2 });
     }
   }
   setTimeout(() => focusMapMarker(spot.id), 50);
@@ -1999,6 +2008,12 @@ function openDetail(spot) {
 // ===== DETAIL EDIT MODE =====
 function openDetailEdit() {
   if (!detailTarget) return;
+  // Snap to expanded so edit content is fully visible
+  const panel = document.getElementById('panel');
+  if (!panel.classList.contains('expanded')) {
+    panel.style.height = '';
+    panel.className = 'expanded';
+  }
   const { day, idx } = detailTarget;
   const spot = DAYS[day].spots[idx];
   const depart = calcDepartTime(spot.arrive, spot.stay);
@@ -2210,23 +2225,42 @@ function navigateDetail(dir) {
                         currentBounds.contains([toSpot.lat, toSpot.lng]);
 
     if (bothVisible) {
-      openDetail(toSpot);
+      openDetail(toSpot); // will flyTo the new spot center
     } else {
-      const bounds = L.latLngBounds(
-        [fromSpot.lat, fromSpot.lng],
-        [toSpot.lat, toSpot.lng]
-      );
       const ph = getMobilePanelH();
-      map.flyToBounds(bounds, {
-        paddingTopLeft: [padPx, padPx],
-        paddingBottomRight: [padPx, ph + padPx],
-        duration: 0.9,
-        easeLinearity: 0.25
+      // Scale duration based on distance between spots
+      const distKm = map.distance([fromSpot.lat, fromSpot.lng], [toSpot.lat, toSpot.lng]) / 1000;
+      const dur = Math.max(0.4, Math.min(1.2, 0.4 + distKm * 0.06));
+
+      // Midpoint between the two spots, offset upward to account for panel
+      const midLat = (fromSpot.lat + toSpot.lat) / 2;
+      const midLng = (fromSpot.lng + toSpot.lng) / 2;
+
+      // Zoom level to fit both spots
+      const bounds = L.latLngBounds([fromSpot.lat, fromSpot.lng], [toSpot.lat, toSpot.lng]);
+      const outZoom = Math.min(
+        map.getBoundsZoom(bounds, false, L.point(padPx * 2, padPx * 2 + ph)),
+        14
+      );
+
+      // Offset midpoint up by half panel height so it centers in visible map area
+      let flyTarget = [midLat, midLng];
+      if (isMobile && ph > 0) {
+        const midPx = map.project([midLat, midLng], outZoom);
+        const offsetPx = L.point(midPx.x, midPx.y + ph / 2);
+        flyTarget = map.unproject(offsetPx, outZoom);
+      }
+
+      // Phase 1: fly to offset midpoint at outZoom
+      map.flyTo(flyTarget, outZoom, { duration: dur, easeLinearity: 0.35 });
+
+      // Phase 2: immediately after phase 1 ends, fly to destination
+      map.once('moveend', () => {
+        openDetail(toSpot);
       });
-      setTimeout(() => { openDetail(toSpot); }, 1050);
     }
   } else {
-    openDetail(toSpot);
+    openDetail(toSpot, true);
   }
 }
 
@@ -2467,6 +2501,12 @@ function showListView() {
   document.getElementById('panel');
   showTabsHeader();
   focusMapMarker(null);
+  // If at minimum stage, snap up to mid
+  const panel = document.getElementById('panel');
+  if (!panel.classList.contains('mid') && !panel.classList.contains('expanded')) {
+    panel.style.height = '';
+    panel.className = 'mid';
+  }
 }
 
 // ===== MOBILE DRAG =====
@@ -2504,7 +2544,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.25, s60 = vh * 0.55, s90 = vh * 0.95;
+    const s30 = vh * 0.22, s60 = vh * 0.55, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }
@@ -2545,7 +2585,7 @@ function showListView() {
     if (!isMobile() || expandHandled) return;
     const dy = e.touches[0].clientY - collapseStartY;
     const vh = window.innerHeight;
-    const s30 = vh * 0.25, s60 = vh * 0.55, s90 = vh * 0.95;
+    const s30 = vh * 0.22, s60 = vh * 0.55, s90 = vh * 0.95;
     const h = panel.offsetHeight;
 
     if (dy < -10 && h < s90 * 0.98) {

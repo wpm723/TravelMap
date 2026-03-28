@@ -1083,7 +1083,7 @@
   <div id="panel" class="mid">
     <div id="panel-header">
       <div id="drag-handle"></div>
-      <div id="header-row" id="drag-zone" style="display:flex;align-items:center;gap:0;padding:0 4px 0 0;position:relative;z-index:1;">
+      <div id="drag-zone" style="display:flex;align-items:center;gap:0;padding:0 4px 0 0;position:relative;z-index:1;">
         <button onclick="headerBack()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:36px;height:36px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
         <div id="day-tabs" style="flex:1;min-width:0;"></div>
         <div id="detail-header-nav" style="display:none;flex:1;min-width:0;align-items:center;gap:6px;overflow:hidden;"></div>
@@ -3000,9 +3000,10 @@ async function doAuth() {
   } catch (e) {
     showAuthError('發生錯誤，請稍後再試');
     console.error(e);
+  } finally {
+    const b = document.getElementById('auth-btn');
+    if (b) { b.disabled = false; b.textContent = authMode === 'register' ? '註冊' : '登入'; }
   }
-  btn.disabled = false;
-  btn.textContent = authMode === 'register' ? '註冊' : '登入';
 }
 
 async function signOut() {

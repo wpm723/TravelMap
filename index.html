@@ -1645,9 +1645,20 @@ function switchDay(idx) {
   const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
   if (spotsWithCoords.length >= 2) {
     const bounds = L.latLngBounds(spotsWithCoords.map(s => [s.lat, s.lng]));
-    const padOptions = getMapPadding(20);
-    const ph = getMobilePanelH();
-    const targetZoom = map.getBoundsZoom(bounds, false, L.point(40, 40 + ph));
+    const isMobile = window.innerWidth <= 768;
+    // Use target panel height based on class (avoids CSS transition timing issues)
+    const panel = document.getElementById('panel');
+    const vh = window.innerHeight;
+    const ph = isMobile ? (
+      panel.classList.contains('expanded') ? vh * 0.95 :
+      panel.classList.contains('mid')      ? vh * 0.55 : vh * 0.22
+    ) : 0;
+    const pad = 20;
+    const padOptions = {
+      paddingTopLeft: [pad, pad],
+      paddingBottomRight: [pad, ph + pad]
+    };
+    const targetZoom = map.getBoundsZoom(bounds, false, L.point(pad * 2, pad * 2 + ph));
     const currentZoom = map.getZoom();
 
     if (targetZoom > currentZoom) {
@@ -1663,7 +1674,10 @@ function switchDay(idx) {
     const s = spotsWithCoords[0];
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-      const ph = getMobilePanelH();
+      const panel = document.getElementById('panel');
+      const vh = window.innerHeight;
+      const ph = panel.classList.contains('expanded') ? vh * 0.95 :
+                 panel.classList.contains('mid')      ? vh * 0.55 : vh * 0.22;
       const targetZoom = 14;
       const spotPx = map.project([s.lat, s.lng], targetZoom);
       const offsetPx = L.point(spotPx.x, spotPx.y + ph / 2);

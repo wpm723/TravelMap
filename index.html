@@ -683,7 +683,7 @@
     border: 1px solid rgba(0,0,0,0.1);
     border-radius: 6px;
     padding: 3px 8px;
-    font-size: 11px;
+    font-size: 0.9rem;
     font-weight: 600;
     white-space: nowrap;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -713,7 +713,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 33dvh;
+      height: 31dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -1408,7 +1408,7 @@ function renderMap(dayIdx) {
     const labelIcon = L.divIcon({
       html: `<div class="pin-label">${spot.name}</div>`,
       iconSize: [null, null],
-      iconAnchor: [-36, 22],
+      iconAnchor: [-20, 22],
       className: ''
     });
 
@@ -1478,10 +1478,7 @@ function focusMapMarker(spotId) {
 // ===== TABS =====
 function renderTabs() {
   const container = document.getElementById('day-tabs');
-  const detailNav = document.getElementById('detail-header-nav');
   container.innerHTML = '';
-  container.style.display = 'flex';
-  if (detailNav) detailNav.style.display = 'none';
 
   // Overview tab
   const ovBtn = document.createElement('button');
@@ -1498,6 +1495,11 @@ function renderTabs() {
     btn.onclick = () => switchDay(i);
     container.appendChild(btn);
   });
+
+  // Only show tabs header if not in detail view
+  if (currentView !== 'detail') {
+    showTabsHeader();
+  }
 }
 
 function renderDetailHeader(spot) {
@@ -2025,7 +2027,7 @@ function openDetailEdit() {
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">名稱</div>
         <input class="detail-field-input" id="d-name" value="${spot.name}" placeholder="景點名稱" style="width:100%;box-sizing:border-box;" enterkeyhint="done"
-          onkeydown="if(event.key==='Enter'){this.blur();}">
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;" id="d-type-row">${typeBtns}</div>
       </div>
 
@@ -2037,7 +2039,7 @@ function openDetailEdit() {
             value="${spot.arrive ? spot.arrive.padStart(5,'0') : autoArrive}"
             style="flex:2;min-width:0;height:2.625rem;box-sizing:border-box;"
             oninput="formatTimeInput(this);updateDetailDepart()"
-            onkeydown="if(event.key==='Enter'){this.blur();}">
+            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
           <select id="d-mode-sel" onchange="switchDetailMode(this.value==='depart'?'depart':'stay')"
             style="flex:3;min-width:7rem;padding:0 0.4rem;height:2.625rem;border:1px solid var(--gray-200);border-radius:8px;font-size:0.875rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);cursor:pointer;box-sizing:border-box;">
             <option value="stay" ${detailDurMode==='stay'?'selected':''}>停留時長</option>
@@ -2045,14 +2047,14 @@ function openDetailEdit() {
           </select>
           <div id="d-field-stay" style="flex:2;min-width:0;${detailDurMode==='depart'?'display:none;':''}">
             <input class="detail-field-input" id="d-stay" value="${spot.stay||''}" placeholder="停留" enterkeyhint="done"
-              style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailDepart()" onkeydown="if(event.key==='Enter'){this.blur();}">
+              style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailDepart()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
           </div>
           <div id="d-field-depart" style="flex:2;min-width:0;${detailDurMode==='stay'?'display:none;':''}">
             <input type="text" class="detail-field-input" id="d-depart-time" inputmode="numeric" placeholder="HH:MM"
               value="${depart?depart.padStart(5,'0'):''}"
               style="width:100%;height:2.625rem;box-sizing:border-box;"
               oninput="formatTimeInput(this);updateDetailFromDepart()"
-              onkeydown="if(event.key==='Enter'){this.blur();}">
+              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
           </div>
         </div>
         <div id="d-depart-hint" style="font-size:0.875rem;color:var(--gray-400);margin-top:4px;"></div>
@@ -2065,7 +2067,7 @@ function openDetailEdit() {
 
       <div class="detail-section">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">地點</div>
-        <input class="detail-field-input" id="d-mapurl" value="${spot.mapUrl||''}" placeholder="輸入 google map 網址" style="width:100%;box-sizing:border-box;margin-bottom:8px;" enterkeyhint="done" onkeydown="if(event.key==='Enter'){this.blur();}">
+        <input class="detail-field-input" id="d-mapurl" value="${spot.mapUrl||''}" placeholder="輸入 google map 網址" style="width:100%;box-sizing:border-box;margin-bottom:8px;" enterkeyhint="done" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         <div class="detail-geocode-row" style="margin-bottom:8px;">
           <input class="detail-field-input" id="d-geocode-q" placeholder="輸入地名或地址" style="flex:1;min-width:0;" enterkeyhint="search" onkeydown="if(event.key==='Enter'){event.preventDefault();detailGeocode();}">
           <button onclick="detailGeocode()" style="padding:8px 12px;border-radius:8px;border:none;background:var(--ocean);color:#fff;font-size:0.9375rem;font-family:inherit;cursor:pointer;white-space:nowrap;">查詢</button>
@@ -2187,6 +2189,7 @@ function moveSpotToDay(newDayIdx) {
   renderTabs();
   renderList();
   renderMap(newDayIdx);
+  openDetailEdit(); // refresh edit page to reflect new day
 }
 
 
@@ -2426,8 +2429,26 @@ function saveDetailData() {
 
 function saveDetail() {
   saveDetailData();
-  renderMap(detailTarget?.day ?? currentDay);
-  updateDetailDepart();
+  // Re-sort spots by arrive time
+  const day = detailTarget?.day ?? currentDay;
+  const spots = DAYS[day].spots;
+  const spot = spots[detailTarget.idx];
+  spots.sort((a, b) => {
+    if (!a.arrive) return 1;
+    if (!b.arrive) return -1;
+    return a.arrive.localeCompare(b.arrive);
+  });
+  // Re-sync transports array length
+  const dayObj = DAYS[day];
+  while (dayObj.transports.length < spots.length - 1) dayObj.transports.push({ mode: '', time: '' });
+  dayObj.transports.length = Math.max(0, spots.length - 1);
+  // Update detailTarget to new index
+  const newIdx = spots.findIndex(s => s.id === spot.id);
+  if (newIdx !== -1) detailTarget = { day, idx: newIdx };
+  recalcFromSpot(day, 0);
+  saveToStorage();
+  renderMap(day);
+  renderList();
   const btn = document.getElementById('detail-save-btn');
   if (btn) {
     btn.textContent = '✓ 已儲存';
@@ -2483,7 +2504,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.33, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.31, s60 = vh * 0.65, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }
@@ -2524,7 +2545,7 @@ function showListView() {
     if (!isMobile() || expandHandled) return;
     const dy = e.touches[0].clientY - collapseStartY;
     const vh = window.innerHeight;
-    const s30 = vh * 0.33, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.31, s60 = vh * 0.65, s90 = vh * 0.95;
     const h = panel.offsetHeight;
 
     if (dy < -10 && h < s90 * 0.98) {

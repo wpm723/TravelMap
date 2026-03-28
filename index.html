@@ -56,7 +56,7 @@
   /* ===== PANEL HEADER ===== */
   #panel-header {
     background: linear-gradient(135deg, var(--ocean-dark) 0%, var(--ocean) 100%);
-    padding: 12px 16px 0;
+    padding: 8px 4px 0;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
@@ -724,7 +724,7 @@
     }
     #panel.mid { height: 65dvh; }
     #panel.expanded { height: 95dvh; }
-    #panel-header { padding: 0 16px; border-radius: 20px 20px 0 0; flex-shrink: 0; }
+    #panel-header { padding: 4px 4px 0; border-radius: 20px 20px 0 0; flex-shrink: 0; }
     #drag-zone { cursor: grab; }
     .trip-name { font-size: 15px; margin-bottom: 0; }
     .detail-back { position: relative; top: auto; z-index: auto; }
@@ -1083,19 +1083,12 @@
   <div id="panel" class="mid">
     <div id="panel-header">
       <div id="drag-handle"></div>
-      <div id="drag-zone" style="padding-bottom:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:4px;min-width:0;flex:1;">
-            <button onclick="backToProjects()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:36px;height:36px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
-            <div style="min-width:0;display:flex;align-items:center;gap:0;overflow:hidden;flex:1;">
-              <div class="trip-name" id="header-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">八天七夜 沖繩之旅</div>
-              <div class="trip-title" id="header-subtitle" style="white-space:nowrap;opacity:0.6;font-size:0.75rem;letter-spacing:1px;margin-left:auto;padding-left:8px;flex-shrink:0;">2026 · OKINAWA</div>
-            </div>
-          </div>
-          <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;flex-shrink:0;margin-left:6px;"></div>
-        </div>
+      <div id="header-row" id="drag-zone" style="display:flex;align-items:center;gap:0;padding:0 4px 0 0;position:relative;z-index:1;">
+        <button onclick="headerBack()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:36px;height:36px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
+        <div id="day-tabs" style="flex:1;min-width:0;"></div>
+        <div id="detail-header-nav" style="display:none;flex:1;min-width:0;align-items:center;gap:6px;overflow:hidden;"></div>
+        <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;flex-shrink:0;margin-left:4px;"></div>
       </div>
-      <div id="day-tabs"></div>
     </div>
     <div id="panel-body">
       <div id="list-view" class="panel-view"></div>
@@ -1200,10 +1193,7 @@ function computeDayDates() {
 }
 
 function renderHeader() {
-  const sub = document.getElementById('header-subtitle');
-  const name = document.getElementById('header-name');
-  if (sub) sub.textContent = TRIP_META.tripSubtitle;
-  if (name) name.textContent = TRIP_META.tripName;
+  // Header now shows tabs/detail-nav only, no trip name
 }
 
 const DAYS = [
@@ -1485,7 +1475,10 @@ function focusMapMarker(spotId) {
 // ===== TABS =====
 function renderTabs() {
   const container = document.getElementById('day-tabs');
+  const detailNav = document.getElementById('detail-header-nav');
   container.innerHTML = '';
+  container.style.display = 'flex';
+  if (detailNav) detailNav.style.display = 'none';
 
   // Overview tab
   const ovBtn = document.createElement('button');
@@ -1502,6 +1495,31 @@ function renderTabs() {
     btn.onclick = () => switchDay(i);
     container.appendChild(btn);
   });
+}
+
+function renderDetailHeader(spot) {
+  const container = document.getElementById('day-tabs');
+  const detailNav = document.getElementById('detail-header-nav');
+  if (!detailNav || !container) return;
+
+  container.style.display = 'none';
+  detailNav.style.display = 'flex';
+  detailNav.style.alignItems = 'center';
+  detailNav.style.gap = '4px';
+  detailNav.style.overflow = 'hidden';
+  detailNav.style.flex = '1';
+  detailNav.style.minWidth = '0';
+
+  const { day, idx } = detailTarget;
+  const total = DAYS[day].spots.length;
+  const navBtnStyle = `background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;padding:0;width:28px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+
+  detailNav.innerHTML = `
+    <div style="font-size:1rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">${spot.name}</div>
+    <button onclick="navigateDetail(-1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.1rem;pointer-events:none;"></iconify-icon></button>
+    <span style="font-size:0.8125rem;color:rgba(255,255,255,0.7);white-space:nowrap;">${idx + 1}/${total}</span>
+    <button onclick="navigateDetail(1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.1rem;pointer-events:none;"></iconify-icon></button>
+  `;
 }
 
 function switchToOverview() {
@@ -1611,6 +1629,7 @@ function switchDay(idx) {
   document.getElementById('detail-view').classList.add('hidden-right');
   focusMapMarker(null);
   document.getElementById('panel');
+  showTabsHeader();
   document.getElementById('list-view').scrollTop = 0;
 
   const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
@@ -1736,11 +1755,7 @@ function renderList() {
   const day = DAYS[currentDay];
   const container = document.getElementById('list-view');
 
-  let html = `<div class="day-info">
-    <div>
-      <div class="day-date" style="font-size:15px;font-weight:600;">${day.date}</div>
-    </div>
-  </div>`;
+  let html = '';
 
   day.spots.forEach((spot, i) => {
     const typeClass = spot.type === 'food' ? 'food' : spot.type === 'hotel' ? 'hotel' : '';
@@ -1921,18 +1936,9 @@ function openDetail(spot) {
   const hasPrev = idx > 0;
   const hasNext = idx < DAYS[day].spots.length - 1;
 
-  const navBtnStyle = `font-size:1rem;color:var(--ocean);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;`;
+  showDetailHeader(spot.name, true, idx, DAYS[day].spots.length);
 
   view.innerHTML = `
-    <div class="detail-back">
-      <span onclick="showListView()" style="display:flex;align-items:center;cursor:pointer;padding:0 2px;color:var(--ocean);"><iconify-icon icon="tabler:arrow-left" style="font-size:1.5rem;"></iconify-icon></span>
-      <span style="flex:1;margin:0 8px;font-size:0.9375rem;font-weight:600;color:var(--text);">${DAYS[day].label} · ${DAYS[day].date}</span>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <button onclick="navigateDetail(-1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
-        <span style="font-size:0.875rem;color:var(--gray-400);min-width:2rem;text-align:center;">${idx + 1} / ${DAYS[day].spots.length}</span>
-        <button onclick="navigateDetail(1)" style="${navBtnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
-      </div>
-    </div>
     <div class="detail-hero">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div class="detail-name-display" style="flex:1;">${spot.name}</div>
@@ -1967,6 +1973,8 @@ function openDetail(spot) {
   const listView = document.getElementById('list-view');
   listView.classList.add('hidden-left');
   view.classList.remove('hidden-right');
+  currentView = 'detail';
+  renderDetailHeader(spot);
   document.getElementById('panel');
   if (spot.lat != null && spot.lng != null) {
     const isMobile = window.innerWidth <= 768;
@@ -2009,12 +2017,8 @@ function openDetailEdit() {
   const fs = `flex:1;min-width:0;padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:8px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);box-sizing:border-box;`;
 
   const view = document.getElementById('detail-view');
+  showDetailHeader('編輯景點', false);
   view.innerHTML = `
-    <div class="detail-back">
-      <span onclick="openDetail(DAYS[detailTarget.day].spots[detailTarget.idx])" style="display:flex;align-items:center;cursor:pointer;padding:0 2px;color:var(--ocean);"><iconify-icon icon="tabler:arrow-left" style="font-size:1.5rem;"></iconify-icon></span>
-      <span style="flex:1;margin:0 8px;font-size:1rem;font-weight:600;color:var(--text);">編輯景點</span>
-      <span id="detail-saved-ind" style="font-size:12px;color:#22c55e;opacity:0;transition:opacity 0.3s;">✓ 已儲存</span>
-    </div>
     <div class="detail-body" style="padding-top:0;">
 
       <div class="detail-section">
@@ -2028,8 +2032,11 @@ function openDetailEdit() {
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">日期時間</div>
         <select id="d-day-select2" onchange="moveSpotToDay(this.value)" style="${fs}width:100%;cursor:pointer;margin-bottom:8px;">${dayOptions}</select>
         <div style="display:flex;gap:6px;align-items:stretch;width:100%;box-sizing:border-box;">
-          <input type="time" class="detail-field-input" id="d-arrive" lang="zh-TW" data-format="24h" value="${spot.arrive ? spot.arrive.padStart(5,'0') : autoArrive}"
-            style="flex:2;min-width:0;height:2.625rem;" oninput="updateDetailDepart()">
+          <input type="text" class="detail-field-input" id="d-arrive" inputmode="numeric" placeholder="HH:MM"
+            value="${spot.arrive ? spot.arrive.padStart(5,'0') : autoArrive}"
+            style="flex:2;min-width:0;height:2.625rem;box-sizing:border-box;"
+            oninput="formatTimeInput(this);updateDetailDepart()"
+            onkeydown="if(event.key==='Enter'){this.blur();}">
           <select id="d-mode-sel" onchange="switchDetailMode(this.value==='depart'?'depart':'stay')"
             style="flex:3;min-width:7rem;padding:0 0.4rem;height:2.625rem;border:1px solid var(--gray-200);border-radius:8px;font-size:0.875rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);cursor:pointer;box-sizing:border-box;">
             <option value="stay" ${detailDurMode==='stay'?'selected':''}>停留時長</option>
@@ -2040,8 +2047,11 @@ function openDetailEdit() {
               style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailDepart()" onkeydown="if(event.key==='Enter'){this.blur();}">
           </div>
           <div id="d-field-depart" style="flex:2;min-width:0;${detailDurMode==='stay'?'display:none;':''}">
-            <input type="time" class="detail-field-input" id="d-depart-time" lang="zh-TW" data-format="24h" value="${depart?depart.padStart(5,'0'):''}"
-              style="width:100%;height:2.625rem;box-sizing:border-box;" oninput="updateDetailFromDepart()">
+            <input type="text" class="detail-field-input" id="d-depart-time" inputmode="numeric" placeholder="HH:MM"
+              value="${depart?depart.padStart(5,'0'):''}"
+              style="width:100%;height:2.625rem;box-sizing:border-box;"
+              oninput="formatTimeInput(this);updateDetailFromDepart()"
+              onkeydown="if(event.key==='Enter'){this.blur();}">
           </div>
         </div>
         <div id="d-depart-hint" style="font-size:0.875rem;color:var(--gray-400);margin-top:4px;"></div>
@@ -2131,10 +2141,16 @@ function switchDetailMode(mode) {
   }
 }
 
+function formatTimeInput(input) {
+  let v = input.value.replace(/[^\d]/g, '');
+  if (v.length > 4) v = v.slice(0, 4);
+  if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2);
+  input.value = v;
+}
+
+
 function updateDetailFromDepart() {
   const arrive = document.getElementById('d-arrive')?.value.trim();
-  const depart = document.getElementById('d-depart-time')?.value.trim();
-  const hint = document.getElementById('d-depart-hint');
   if (!hint) return;
   if (!arrive || !depart) { hint.textContent = ''; return; }
   const [ah, am] = arrive.split(':').map(Number);
@@ -2427,6 +2443,7 @@ function showListView() {
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
   document.getElementById('panel');
+  showTabsHeader();
   focusMapMarker(null);
 }
 
@@ -2549,9 +2566,6 @@ function renderOverview() {
     </div>${i < DAYS.length - 1 ? '<div style="height:1px;background:var(--gray-100);margin:0 6px;"></div>' : ''}`).join('');
 
   v.innerHTML = `
-    <div class="day-info" style="border-bottom:1px solid var(--gray-200);">
-      <div style="font-size:15px;font-weight:600;color:var(--text);">行程總覽</div>
-    </div>
     <div style="padding:14px 16px;padding-bottom:80px;">
 
       <div style="margin-bottom:18px;">
@@ -3121,6 +3135,46 @@ async function loadProject(id, row) {
   if (!map) initMap(); else renderMap(0);
   switchToOverview();
 }
+
+function showDetailHeader(title, showNav, idx, total) {
+  document.getElementById('day-tabs').style.display = 'none';
+  const nav = document.getElementById('detail-header-nav');
+  nav.style.display = 'flex';
+  if (showNav) {
+    const btnStyle = `background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;padding:0;`;
+    nav.innerHTML = `
+      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1rem;font-weight:600;color:#fff;">${title}</div>
+      <button onclick="navigateDetail(-1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
+      <span style="font-size:0.875rem;color:rgba(255,255,255,0.7);min-width:2.5rem;text-align:center;">${idx + 1} / ${total}</span>
+      <button onclick="navigateDetail(1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>`;
+  } else {
+    nav.innerHTML = `<span style="font-size:1rem;font-weight:600;color:#fff;">${title}</span>`;
+  }
+}
+
+function showTabsHeader() {
+  document.getElementById('day-tabs').style.display = '';
+  const nav = document.getElementById('detail-header-nav');
+  nav.style.display = 'none';
+  nav.innerHTML = '';
+}
+
+function headerBack() {
+  const detailView = document.getElementById('detail-view');
+  const isDetailVisible = !detailView.classList.contains('hidden-right');
+  if (isDetailVisible && detailTarget) {
+    // In edit mode → go back to detail view
+    if (document.getElementById('detail-header-nav')?.innerHTML?.includes('編輯景點')) {
+      openDetail(DAYS[detailTarget.day].spots[detailTarget.idx]);
+    } else {
+      showListView();
+    }
+  } else {
+    backToProjects();
+  }
+}
+
+
 
 async function backToProjects() {
   await flushSave();

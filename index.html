@@ -56,10 +56,21 @@
   /* ===== PANEL HEADER ===== */
   #panel-header {
     background: linear-gradient(135deg, var(--ocean-dark) 0%, var(--ocean) 100%);
-    padding: 8px 4px 0;
+    padding: 6px 4px 0;
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+    padding-bottom: 0;
+  }
+  #day-tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: relative;
+    z-index: 1;
+    padding-bottom: 0;
+    margin-bottom: 0;
   }
   #panel-header::before {
     content: '';
@@ -96,23 +107,14 @@
   }
 
   /* ===== DAY TABS ===== */
-  #day-tabs {
-    display: flex;
-    gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    position: relative;
-    z-index: 1;
-    padding-bottom: 0;
-  }
   #day-tabs::-webkit-scrollbar { display: none; }
   .day-tab {
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 5px 12px 6px 12px;
     border-radius: 8px 8px 0 0;
     background: rgba(255,255,255,0.1);
     color: rgba(255,255,255,0.6);
-    font-size: 12px;
+    font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
@@ -556,12 +558,12 @@
     border-bottom: 1px solid var(--gray-100);
   }
   .detail-section-title {
-    font-size: 0.6875rem;
+    font-size: 0.9rem;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--gray-400);
     margin-bottom: 0.625rem;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   /* Inline field rows */
@@ -711,7 +713,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: 40dvh;
+      height: 33dvh;
       max-height: 95dvh;
       border-radius: 20px 20px 0 0;
       box-shadow: 0 -4px 30px rgba(0,0,0,0.25);
@@ -733,7 +735,7 @@
       width: 36px; height: 4px;
       background: rgba(255,255,255,0.35);
       border-radius: 2px;
-      margin: 8px auto 6px;
+      margin: 4px auto 3px;
       cursor: grab;
       flex-shrink: 0;
     }
@@ -1083,10 +1085,10 @@
   <div id="panel" class="mid">
     <div id="panel-header">
       <div id="drag-handle"></div>
-      <div id="drag-zone" style="display:flex;align-items:center;gap:0;padding:0 4px 0 0;position:relative;z-index:1;">
-        <button onclick="headerBack()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:36px;height:36px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
+      <div id="drag-zone" style="display:flex;align-items:flex-end;gap:0;padding:0 4px 0 0;position:relative;z-index:1;">
+        <button onclick="headerBack()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:40px;height:40px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
         <div id="day-tabs" style="flex:1;min-width:0;"></div>
-        <div id="detail-header-nav" style="display:none;flex:1;min-width:0;align-items:center;gap:6px;overflow:hidden;"></div>
+        <div id="detail-header-nav" style="display:none;flex:1;min-width:0;align-items:center;gap:6px;overflow:hidden;padding-bottom:4px;font-size:20px;font-weight:500;"></div>
         <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;flex-shrink:0;margin-left:4px;"></div>
       </div>
     </div>
@@ -1937,8 +1939,6 @@ function openDetail(spot) {
   const hasPrev = idx > 0;
   const hasNext = idx < DAYS[day].spots.length - 1;
 
-  showDetailHeader(spot.name, true, idx, DAYS[day].spots.length);
-
   view.innerHTML = `
     <div class="detail-hero">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -1975,7 +1975,7 @@ function openDetail(spot) {
   listView.classList.add('hidden-left');
   view.classList.remove('hidden-right');
   currentView = 'detail';
-  renderDetailHeader(spot);
+  showDetailHeader(spot.name, true, idx, DAYS[day].spots.length);
   document.getElementById('panel');
   if (spot.lat != null && spot.lng != null) {
     const isMobile = window.innerWidth <= 768;
@@ -2466,8 +2466,8 @@ function showListView() {
     panel.style.transition = 'none';
   }
 
-  dragZone.addEventListener('touchstart', onTouchStart, { passive: true });
-  handle.addEventListener('touchstart', onTouchStart, { passive: true });
+  if (dragZone) dragZone.addEventListener('touchstart', onTouchStart, { passive: true });
+  if (handle) handle.addEventListener('touchstart', onTouchStart, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
     if (!dragging || !isMobile()) return;
@@ -2483,7 +2483,7 @@ function showListView() {
     panel.style.transition = '';
     const h = panel.offsetHeight;
     const vh = window.innerHeight;
-    const s30 = vh * 0.40, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.33, s60 = vh * 0.65, s90 = vh * 0.95;
     let target, cls;
     if (h < (s30 + s60) / 2) { target = s30; cls = ''; }
     else if (h < (s60 + s90) / 2) { target = s60; cls = 'mid'; }
@@ -2524,15 +2524,18 @@ function showListView() {
     if (!isMobile() || expandHandled) return;
     const dy = e.touches[0].clientY - collapseStartY;
     const vh = window.innerHeight;
-    const s30 = vh * 0.40, s60 = vh * 0.65, s90 = vh * 0.95;
+    const s30 = vh * 0.33, s60 = vh * 0.65, s90 = vh * 0.95;
     const h = panel.offsetHeight;
 
     if (dy < -10 && h < s90 * 0.98) {
-      // Swiping up and not yet expanded → expand panel, block scroll
+      // Swiping up → expand one stage at a time
       e.preventDefault();
       panel.style.transition = '';
-      panel.style.height = s90 + 'px';
-      panel.className = 'expanded';
+      if (h < s60 * 0.85) {
+        panel.style.height = s60 + 'px'; panel.className = 'mid';
+      } else {
+        panel.style.height = s90 + 'px'; panel.className = 'expanded';
+      }
       expandHandled = true;
     } else if (dy > 10 && collapseStartScroll <= 0 && h > s30 * 1.02) {
       // Swiping down at top → collapse one stage
@@ -3143,14 +3146,14 @@ function showDetailHeader(title, showNav, idx, total) {
   const nav = document.getElementById('detail-header-nav');
   nav.style.display = 'flex';
   if (showNav) {
-    const btnStyle = `background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;padding:0;`;
+    const btnStyle = `background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;padding:0;width:28px;height:35px;justify-content:center;`;
     nav.innerHTML = `
-      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1rem;font-weight:600;color:#fff;">${title}</div>
-      <button onclick="navigateDetail(-1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>
-      <span style="font-size:0.875rem;color:rgba(255,255,255,0.7);min-width:2.5rem;text-align:center;">${idx + 1} / ${total}</span>
-      <button onclick="navigateDetail(1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.25rem;pointer-events:none;"></iconify-icon></button>`;
+      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:20px;font-weight:500;color:#fff;">${title}</div>
+      <button onclick="navigateDetail(-1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:left" style="font-size:1.625rem;pointer-events:none;"></iconify-icon></button>
+      <span style="font-size:1rem;color:rgba(255,255,255,0.7);min-width:2.75rem;text-align:center;">${idx + 1} / ${total}</span>
+      <button onclick="navigateDetail(1)" style="${btnStyle}"><iconify-icon icon="icon-park-outline:right" style="font-size:1.625rem;pointer-events:none;"></iconify-icon></button>`;
   } else {
-    nav.innerHTML = `<span style="font-size:1rem;font-weight:600;color:#fff;">${title}</span>`;
+    nav.innerHTML = `<span style="font-size:20px;font-weight:500;color:#fff;padding-bottom:3px;">${title}</span>`;
   }
 }
 

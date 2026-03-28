@@ -2647,11 +2647,9 @@ function showListView() {
 // ===== OVERVIEW =====
 function renderOverview() {
   const v = document.getElementById('overview-view');
-  const totalDays = DAYS.length;
-  const nights = totalDays - 1;
 
-  const fieldStyle = `flex:1;padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:8px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);`;
-  const labelStyle = `font-size:0.875rem;color:var(--gray-400);flex-shrink:0;width:4.5rem;`;
+  const startStr = TRIP_META.startDate ? TRIP_META.startDate.replace(/-/g, '/') : '—';
+  const endStr   = TRIP_META.endDate   ? TRIP_META.endDate.replace(/-/g, '/') : '—';
 
   const dayRows = DAYS.map((d, i) => `
     <div onclick="switchDay(${i})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;cursor:pointer;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
@@ -2665,20 +2663,63 @@ function renderOverview() {
   v.innerHTML = `
     <div style="padding:14px 16px;padding-bottom:80px;">
 
-      <div style="margin-bottom:18px;">
-        <div class="detail-section-title" style="margin-bottom:8px;">行程名稱</div>
-        <input id="ov-trip-name" value="${TRIP_META.tripName}"
-          style="${fieldStyle}width:100%;margin-bottom:6px;"
-          placeholder="例：八天七夜 沖繩之旅"
-          oninput="TRIP_META.tripName=this.value;renderHeader();saveToStorage();">
-        <input id="ov-trip-sub" value="${TRIP_META.tripSubtitle}"
-          style="${fieldStyle}width:100%;font-size:12px;"
-          placeholder="例：2026 · OKINAWA"
-          oninput="TRIP_META.tripSubtitle=this.value;renderHeader();saveToStorage();">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:16px;">
+        <div style="min-width:0;">
+          <div style="font-size:1.375rem;font-weight:700;color:var(--text);line-height:1.2;">${TRIP_META.tripName||'未命名行程'}</div>
+          ${TRIP_META.tripSubtitle ? `<div style="font-size:0.875rem;color:var(--gray-400);margin-top:2px;letter-spacing:1px;">${TRIP_META.tripSubtitle}</div>` : ''}
+          <div style="font-size:0.9375rem;color:var(--gray-600);margin-top:6px;">${startStr} → ${endStr}</div>
+        </div>
+        <button onclick="openOverviewEdit()" style="flex-shrink:0;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:6px 12px;font-size:0.875rem;color:var(--gray-600);cursor:pointer;font-family:inherit;white-space:nowrap;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='none'">編輯</button>
       </div>
 
+      ${TRIP_META.note ? `
       <div style="margin-bottom:18px;">
-        <div class="detail-section-title" style="margin-bottom:8px;">旅行日期</div>
+        <div class="detail-section-title" style="margin-bottom:6px;">備注</div>
+        <div style="font-size:1rem;color:#37474f;line-height:1.4;white-space:pre-wrap;">${TRIP_META.note.replace(/</g,'&lt;')}</div>
+      </div>` : ''}
+
+      <div>
+        <div class="detail-section-title" style="margin-bottom:4px;">天數一覽 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;">（點擊跳轉）</span></div>
+        ${dayRows}
+      </div>
+
+    </div>
+  `;
+}
+
+function openOverviewEdit() {
+  const panel = document.getElementById('panel');
+  if (!panel.classList.contains('expanded')) {
+    panel.style.height = '';
+    panel.className = 'expanded';
+  }
+  showDetailHeader('編輯總覽', false);
+  renderOverviewEdit();
+}
+
+function renderOverviewEdit() {
+  const v = document.getElementById('overview-view');
+  const fieldStyle = `flex:1;padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:8px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);`;
+
+  v.innerHTML = `
+    <div style="padding:14px 16px;padding-bottom:80px;">
+
+      <div class="detail-section" style="border:none;padding:0;margin-bottom:18px;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">行程名稱</div>
+        <input id="ov-trip-name" value="${TRIP_META.tripName}"
+          style="${fieldStyle}width:100%;margin-bottom:8px;box-sizing:border-box;"
+          placeholder="例：八天七夜 沖繩之旅"
+          oninput="TRIP_META.tripName=this.value;renderHeader();"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        <input id="ov-trip-sub" value="${TRIP_META.tripSubtitle}"
+          style="${fieldStyle}width:100%;font-size:0.875rem;box-sizing:border-box;"
+          placeholder="例：2026 · OKINAWA"
+          oninput="TRIP_META.tripSubtitle=this.value;renderHeader();"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+      </div>
+
+      <div class="detail-section" style="border:none;padding:0;margin-bottom:18px;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">旅行日期</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="date" id="ov-start-date" value="${TRIP_META.startDate}"
             style="${fieldStyle}flex:1;" oninput="onDateChange()">
@@ -2688,20 +2729,24 @@ function renderOverview() {
         </div>
       </div>
 
-      <div style="margin-bottom:18px;">
-        <div class="detail-section-title" style="margin-bottom:8px;">備注</div>
+      <div class="detail-section" style="border:none;padding:0;margin-bottom:24px;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">備注</div>
         <textarea id="ov-note" rows="3"
-          style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:10px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);resize:vertical;line-height:1.6;box-sizing:border-box;"
+          style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:10px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);resize:vertical;line-height:1.5;box-sizing:border-box;"
           placeholder="旅伴、預算、注意事項…"
-          oninput="TRIP_META.note=this.value;saveToStorage();">${TRIP_META.note}</textarea>
+          oninput="TRIP_META.note=this.value;">${TRIP_META.note}</textarea>
       </div>
 
-      <div>
-        <div class="detail-section-title" style="margin-bottom:4px;">天數一覽 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;">（點擊跳轉）</span></div>
-        ${dayRows}
+      <div style="display:flex;gap:8px;margin-bottom:24px;">
+        <button onclick="closeOverviewEdit()"
+          style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;"
+          onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='#fff'">取消</button>
+        <button onclick="saveOverviewEdit()"
+          style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;"
+          onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
       </div>
 
-      <div style="margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--gray-100);">
+      <div style="padding-top:1.5rem;border-top:1px solid var(--gray-100);">
         <button onclick="confirmDeleteProject()"
           style="width:100%;padding:0.75rem;border-radius:10px;border:1.5px solid rgba(224,122,95,0.3);background:transparent;color:var(--coral);font-size:1rem;font-family:inherit;cursor:pointer;transition:all 0.2s;"
           onmouseover="this.style.background='var(--coral)';this.style.color='#fff';this.style.borderColor='var(--coral)'"
@@ -2709,8 +2754,23 @@ function renderOverview() {
           刪除此行程
         </button>
       </div>
+
     </div>
   `;
+}
+
+function saveOverviewEdit() {
+  TRIP_META.tripName     = document.getElementById('ov-trip-name')?.value.trim() || '';
+  TRIP_META.tripSubtitle = document.getElementById('ov-trip-sub')?.value.trim() || '';
+  TRIP_META.note         = document.getElementById('ov-note')?.value || '';
+  saveToStorage();
+  renderHeader();
+  closeOverviewEdit();
+}
+
+function closeOverviewEdit() {
+  showTabsHeader();
+  renderOverview();
 }
 
 function onDateChange() {
@@ -3260,9 +3320,12 @@ function showTabsHeader() {
 function headerBack() {
   const detailView = document.getElementById('detail-view');
   const isDetailVisible = !detailView.classList.contains('hidden-right');
-  if (isDetailVisible && detailTarget) {
-    // In edit mode → go back to detail view
-    if (document.getElementById('detail-header-nav')?.innerHTML?.includes('編輯景點')) {
+  const navHTML = document.getElementById('detail-header-nav')?.innerHTML || '';
+
+  if (navHTML.includes('編輯總覽')) {
+    closeOverviewEdit();
+  } else if (isDetailVisible && detailTarget) {
+    if (navHTML.includes('編輯景點')) {
       openDetail(DAYS[detailTarget.day].spots[detailTarget.idx]);
     } else {
       showListView();

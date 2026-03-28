@@ -1633,9 +1633,14 @@ function switchDay(idx) {
   document.getElementById('list-view').classList.remove('hidden-left');
   document.getElementById('detail-view').classList.add('hidden-right');
   focusMapMarker(null);
-  document.getElementById('panel');
   showTabsHeader();
   document.getElementById('list-view').scrollTop = 0;
+  // Snap from expanded to mid
+  const panel = document.getElementById('panel');
+  if (panel.classList.contains('expanded')) {
+    panel.style.height = '';
+    panel.className = 'mid';
+  }
 
   const spotsWithCoords = DAYS[idx].spots.filter(s => s.lat != null && s.lng != null);
   if (spotsWithCoords.length >= 2) {
@@ -2450,15 +2455,6 @@ function saveDetailData() {
   recalcFromSpot(day, idx);
   saveToStorage();
   renderList();
-
-  // Show subtle saved indicator in back bar
-  const ind = document.getElementById('detail-saved-ind');
-  if (ind) {
-    ind.textContent = '✓';
-    ind.style.opacity = '1';
-    clearTimeout(ind._t);
-    ind._t = setTimeout(() => { ind.style.opacity = '0'; }, 1500);
-  }
 }
 
 function saveDetail() {

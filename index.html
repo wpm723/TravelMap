@@ -2645,24 +2645,30 @@ function showListView() {
 })();
 
 // ===== OVERVIEW =====
-function renderOverview() {
-  const v = document.getElementById('overview-view');
+let overviewFiles = [];
 
+async function loadOverviewFiles() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !currentProjectId) return [];
+  const path = `${session.user.id}/overview/${currentProjectId}`;
+  const { data, error } = await sb.storage.from('trip-files').list(path);
+  if (error || !data) return [];
+  return data.map(f => ({ name: f.name, path: `${path}/${f.name}` }));
+}
+
+async function renderOverview() {
+  const v = document.getElementById('overview-view');
   const startStr = TRIP_META.startDate ? TRIP_META.startDate.replace(/-/g, '/') : '—';
   const endStr   = TRIP_META.endDate   ? TRIP_META.endDate.replace(/-/g, '/') : '—';
-
   const dayRows = DAYS.map((d, i) => `
     <div onclick="switchDay(${i})" style="display:flex;align-items:center;gap:10px;padding:8px 6px;cursor:pointer;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
       <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--ocean);color:#fff;font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">${i+1}</div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:1rem;font-weight:600;color:var(--text);">${d.date}</div>
-      </div>
+      <div style="flex:1;min-width:0;"><div style="font-size:1rem;font-weight:600;color:var(--text);">${d.date}</div></div>
       <div style="font-size:0.875rem;color:var(--gray-400);">${d.spots.length} 個景點</div>
     </div>${i < DAYS.length - 1 ? '<div style="height:1px;background:var(--gray-100);margin:0 6px;"></div>' : ''}`).join('');
 
   v.innerHTML = `
     <div style="padding:14px 16px;padding-bottom:80px;">
-
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:16px;">
         <div style="min-width:0;">
           <div style="font-size:1.375rem;font-weight:700;color:var(--text);line-height:1.2;">${TRIP_META.tripName||'未命名行程'}</div>
@@ -2671,92 +2677,141 @@ function renderOverview() {
         </div>
         <button onclick="openOverviewEdit()" style="flex-shrink:0;background:none;border:1.5px solid var(--gray-200);border-radius:8px;padding:6px 12px;font-size:0.875rem;color:var(--gray-600);cursor:pointer;font-family:inherit;white-space:nowrap;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='none'">編輯</button>
       </div>
-
-      ${TRIP_META.note ? `
+      ${TRIP_META.note ? `<div style="margin-bottom:18px;"><div class="detail-section-title" style="margin-bottom:6px;">備注</div><div style="font-size:1rem;color:#37474f;line-height:1.4;">${linkifyNote(TRIP_META.note)}</div></div>` : ''}
       <div style="margin-bottom:18px;">
-        <div class="detail-section-title" style="margin-bottom:6px;">備注</div>
-        <div style="font-size:1rem;color:#37474f;line-height:1.4;white-space:pre-wrap;">${TRIP_META.note.replace(/</g,'&lt;')}</div>
-      </div>` : ''}
-
+        <div class="detail-section-title" style="margin-bottom:8px;">檔案</div>
+        <div id="ov-files-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+        <div id="ov-files-docs" style="margin-top:8px;"></div>
+        <div id="ov-files-loading" style="font-size:0.875rem;color:var(--gray-400);">載入中…</div>
+      </div>
       <div>
         <div class="detail-section-title" style="margin-bottom:4px;">天數一覽 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;">（點擊跳轉）</span></div>
         ${dayRows}
       </div>
-
     </div>
   `;
+  overviewFiles = await loadOverviewFiles();
+  renderOverviewFileGrid(overviewFiles, false);
+}
+
+function renderOverviewFileGrid(files, editMode) {
+  const loading = document.getElementById('ov-files-loading');
+  const grid = document.getElementById('ov-files-grid');
+  const docs = document.getElementById('ov-files-docs');
+  if (!grid || !docs) return;
+  if (loading) loading.style.display = 'none';
+  const isImage = f => /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(f.name);
+  const images = files.filter(isImage);
+  const others = files.filter(f => !isImage(f));
+  grid.innerHTML = images.map(f => {
+    const { data } = sb.storage.from('trip-files').getPublicUrl(f.path);
+    const url = data?.publicUrl || '';
+    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
+    return editMode
+      ? `<div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"><button onclick="deleteOverviewFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button></div>`
+      : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'image',decodeURIComponent('${nEnc}'))" style="aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);cursor:pointer;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
+  }).join('');
+  docs.innerHTML = others.map(f => {
+    const { data } = sb.storage.from('trip-files').getPublicUrl(f.path);
+    const url = data?.publicUrl || '';
+    const ext = f.name.split('.').pop().toUpperCase();
+    const icon = ext === 'PDF' ? '📄' : (ext === 'XLSX' || ext === 'XLS') ? '📊' : '📎';
+    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
+    return editMode
+      ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><button onclick="deleteOverviewFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="background:none;border:none;color:var(--coral);font-size:0.875rem;cursor:pointer;flex-shrink:0;">刪除</button></div>`
+      : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'doc',decodeURIComponent('${nEnc}'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;cursor:pointer;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><span style="font-size:0.75rem;color:var(--gray-400);">▶</span></div>`;
+  }).join('');
+  if (files.length === 0 && !editMode) {
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:0.875rem;color:var(--gray-400);">尚未上傳任何檔案</div>';
+  }
+}
+
+function openFilePreview(url, type, name) {
+  if (type === 'image') {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+    overlay.innerHTML = `<div style="position:absolute;top:16px;right:16px;display:flex;gap:12px;"><a href="${url}" download="${name}" style="color:#fff;font-size:0.875rem;text-decoration:none;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:6px;">下載</a><button onclick="document.body.removeChild(this.closest('[data-overlay]'))" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">×</button></div><img src="${url}" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;"><div style="color:rgba(255,255,255,0.6);font-size:0.875rem;margin-top:10px;">${name}</div>`;
+    overlay.dataset.overlay = '1';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+async function deleteOverviewFile(path, name) {
+  if (!confirm(`確定刪除「${name}」？`)) return;
+  const { error } = await sb.storage.from('trip-files').remove([path]);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  overviewFiles = overviewFiles.filter(f => f.path !== path);
+  renderOverviewFileGrid(overviewFiles, true);
 }
 
 function openOverviewEdit() {
   const panel = document.getElementById('panel');
-  if (!panel.classList.contains('expanded')) {
-    panel.style.height = '';
-    panel.className = 'expanded';
-  }
+  if (!panel.classList.contains('expanded')) { panel.style.height = ''; panel.className = 'expanded'; }
   showDetailHeader('編輯總覽', false);
   renderOverviewEdit();
 }
 
 function renderOverviewEdit() {
   const v = document.getElementById('overview-view');
-  const fieldStyle = `flex:1;padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:8px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);`;
-
+  const fs = 'flex:1;padding:0.5rem 0.75rem;border:1px solid var(--gray-200);border-radius:8px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);';
   v.innerHTML = `
     <div style="padding:14px 16px;padding-bottom:80px;">
-
-      <div class="detail-section" style="border:none;padding:0;margin-bottom:18px;">
+      <div style="margin-bottom:18px;">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">行程名稱</div>
-        <input id="ov-trip-name" value="${TRIP_META.tripName}"
-          style="${fieldStyle}width:100%;margin-bottom:8px;box-sizing:border-box;"
-          placeholder="例：八天七夜 沖繩之旅"
-          oninput="TRIP_META.tripName=this.value;renderHeader();"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
-        <input id="ov-trip-sub" value="${TRIP_META.tripSubtitle}"
-          style="${fieldStyle}width:100%;font-size:0.875rem;box-sizing:border-box;"
-          placeholder="例：2026 · OKINAWA"
-          oninput="TRIP_META.tripSubtitle=this.value;renderHeader();"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        <input id="ov-trip-name" value="${TRIP_META.tripName}" style="${fs}width:100%;margin-bottom:8px;box-sizing:border-box;" placeholder="例：八天七夜 沖繩之旅" oninput="TRIP_META.tripName=this.value;renderHeader();" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        <input id="ov-trip-sub" value="${TRIP_META.tripSubtitle}" style="${fs}width:100%;font-size:0.875rem;box-sizing:border-box;" placeholder="例：2026 · OKINAWA" oninput="TRIP_META.tripSubtitle=this.value;renderHeader();" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
       </div>
-
-      <div class="detail-section" style="border:none;padding:0;margin-bottom:18px;">
+      <div style="margin-bottom:18px;">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">旅行日期</div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <input type="date" id="ov-start-date" value="${TRIP_META.startDate}"
-            style="${fieldStyle}flex:1;" oninput="onDateChange()">
+          <input type="date" id="ov-start-date" value="${TRIP_META.startDate}" style="${fs}flex:1;" oninput="onDateChange()">
           <span style="color:var(--gray-400);flex-shrink:0;">→</span>
-          <input type="date" id="ov-end-date" value="${TRIP_META.endDate}"
-            style="${fieldStyle}flex:1;" oninput="onDateChange()">
+          <input type="date" id="ov-end-date" value="${TRIP_META.endDate}" style="${fs}flex:1;" oninput="onDateChange()">
         </div>
       </div>
-
-      <div class="detail-section" style="border:none;padding:0;margin-bottom:24px;">
+      <div style="margin-bottom:18px;">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:6px;">備注</div>
-        <textarea id="ov-note" rows="3"
-          style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:10px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);resize:vertical;line-height:1.5;box-sizing:border-box;"
-          placeholder="旅伴、預算、注意事項…"
-          oninput="TRIP_META.note=this.value;">${TRIP_META.note}</textarea>
+        <textarea id="ov-note" rows="3" style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:10px;font-size:1rem;font-family:inherit;outline:none;background:var(--gray-100);color:var(--text);resize:vertical;line-height:1.5;box-sizing:border-box;" placeholder="旅伴、預算、注意事項…">${TRIP_META.note}</textarea>
       </div>
-
+      <div style="margin-bottom:24px;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:8px;">檔案</div>
+        <div id="ov-files-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;"></div>
+        <div id="ov-files-docs"></div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--gray-200);border-radius:10px;cursor:pointer;color:var(--gray-400);font-size:0.9375rem;margin-top:8px;">
+          <span>＋ 上傳照片或文件</span>
+          <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" style="display:none;" onchange="uploadOverviewFiles(this.files)">
+        </label>
+        <div id="ov-upload-status" style="font-size:0.875rem;color:var(--gray-400);margin-top:6px;"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:24px;">
-        <button onclick="closeOverviewEdit()"
-          style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;"
-          onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='#fff'">取消</button>
-        <button onclick="saveOverviewEdit()"
-          style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;"
-          onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
+        <button onclick="closeOverviewEdit()" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--gray-200);background:#fff;color:var(--gray-600);font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='#fff'">取消</button>
+        <button onclick="saveOverviewEdit()" style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--ocean);color:#fff;font-size:1rem;font-family:inherit;font-weight:600;cursor:pointer;" onmouseover="this.style.background='var(--ocean-dark)'" onmouseout="this.style.background='var(--ocean)'">儲存</button>
       </div>
-
       <div style="padding-top:1.5rem;border-top:1px solid var(--gray-100);">
-        <button onclick="confirmDeleteProject()"
-          style="width:100%;padding:0.75rem;border-radius:10px;border:1.5px solid rgba(224,122,95,0.3);background:transparent;color:var(--coral);font-size:1rem;font-family:inherit;cursor:pointer;transition:all 0.2s;"
-          onmouseover="this.style.background='var(--coral)';this.style.color='#fff';this.style.borderColor='var(--coral)'"
-          onmouseout="this.style.background='transparent';this.style.color='var(--coral)';this.style.borderColor='rgba(224,122,95,0.3)'">
-          刪除此行程
-        </button>
+        <button onclick="confirmDeleteProject()" style="width:100%;padding:0.75rem;border-radius:10px;border:1.5px solid rgba(224,122,95,0.3);background:transparent;color:var(--coral);font-size:1rem;font-family:inherit;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--coral)';this.style.color='#fff';this.style.borderColor='var(--coral)'" onmouseout="this.style.background='transparent';this.style.color='var(--coral)';this.style.borderColor='rgba(224,122,95,0.3)'">刪除此行程</button>
       </div>
-
     </div>
   `;
+  renderOverviewFileGrid(overviewFiles, true);
+}
+
+async function uploadOverviewFiles(files) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !currentProjectId) return;
+  const status = document.getElementById('ov-upload-status');
+  if (status) status.textContent = '上傳中…';
+  const path = `${session.user.id}/overview/${currentProjectId}`;
+  let uploaded = 0;
+  for (const file of files) {
+    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error } = await sb.storage.from('trip-files').upload(`${path}/${safeName}`, file);
+    if (!error) { overviewFiles.push({ name: safeName, path: `${path}/${safeName}` }); uploaded++; }
+  }
+  if (status) status.textContent = uploaded > 0 ? `✓ 已上傳 ${uploaded} 個檔案` : '上傳失敗，請重試';
+  renderOverviewFileGrid(overviewFiles, true);
 }
 
 function saveOverviewEdit() {

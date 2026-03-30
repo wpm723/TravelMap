@@ -1538,6 +1538,7 @@ function switchToOverview() {
   focusMapMarker(null);
   document.getElementById('panel');
   renderOverviewMap();
+  sessionStorage.removeItem('last_view_state');
 }
 
 function linkifyNote(text) {
@@ -1635,6 +1636,7 @@ function switchDay(idx) {
   focusMapMarker(null);
   showTabsHeader();
   document.getElementById('list-view').scrollTop = 0;
+  sessionStorage.setItem('last_view_state', JSON.stringify({ view: 'list', day: idx }));
   // Snap from expanded to mid
   const panel = document.getElementById('panel');
   if (panel.classList.contains('expanded')) {
@@ -1806,6 +1808,7 @@ function renderList() {
           <button class="spot-menu-btn" onclick="toggleSpotMenu('menu-${currentDay}-${i}',event)"><iconify-icon icon="si:more-vert-duotone" style="font-size:1.5rem;pointer-events:none;"></iconify-icon></button>
           <div class="spot-menu-dropdown" id="menu-${currentDay}-${i}">
             <button class="spot-menu-item" onclick="openDetailAndEdit(${currentDay},${i})">編輯</button>
+            <button class="spot-menu-item" onclick="insertSpotAfter(${currentDay},${i})">在此之後新增</button>
             <button class="spot-menu-item" onclick="duplicateSpot(${currentDay},${i})">建立副本</button>
             <button class="spot-menu-item danger" onclick="deleteSpot(${currentDay},${i})">刪除</button>
           </div>
@@ -1968,6 +1971,7 @@ function openDetail(spot, skipMapAnim = false) {
           <button class="spot-menu-btn" style="width:32px;height:32px;" onclick="toggleSpotMenu('detail-action-menu',event)"><iconify-icon icon="si:more-vert-duotone" style="font-size:1.5rem;pointer-events:none;"></iconify-icon></button>
           <div class="spot-menu-dropdown" id="detail-action-menu">
             <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');openDetailEdit()">編輯</button>
+            <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');insertSpotAfterDetail()">在此之後新增</button>
             <button class="spot-menu-item" onclick="document.getElementById('detail-action-menu').classList.remove('open');duplicateFromDetail()">建立副本</button>
             <button class="spot-menu-item danger" onclick="document.getElementById('detail-action-menu').classList.remove('open');deleteFromDetail()">刪除</button>
           </div>
@@ -1989,6 +1993,12 @@ function openDetail(spot, skipMapAnim = false) {
         <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">備注 & 筆記</div>
         <div style="font-size:1rem;color:#37474f;line-height:1.25;">${linkifyNote(spot.note)}</div>
       </div>` : ''}
+      <div class="detail-section" style="border-bottom:none;">
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">檔案</div>
+        <div id="spot-files-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+        <div id="spot-files-docs" style="margin-top:8px;"></div>
+        <div id="spot-files-loading" style="font-size:0.875rem;color:var(--gray-400);">載入中…</div>
+      </div>
     </div>
   `;
 
@@ -1996,6 +2006,7 @@ function openDetail(spot, skipMapAnim = false) {
   listView.classList.add('hidden-left');
   view.classList.remove('hidden-right');
   currentView = 'detail';
+  sessionStorage.setItem('last_view_state', JSON.stringify({ view: 'detail', day, idx }));
   showDetailHeader(spot.name, true, idx, DAYS[day].spots.length);
   // If panel is at expanded stage, snap down to mid when entering detail
   const panel = document.getElementById('panel');
@@ -2022,6 +2033,8 @@ function openDetail(spot, skipMapAnim = false) {
     }
   }
   setTimeout(() => focusMapMarker(spot.id), 50);
+  // Load spot files async
+  loadSpotFiles(spot.id, false);
 }
 
 // ===== DETAIL EDIT MODE =====
@@ -2133,6 +2146,17 @@ function openDetailEdit() {
         <textarea class="detail-field-textarea" id="d-note" placeholder="備注、注意事項、費用…" style="width:100%;box-sizing:border-box;" enterkeyhint="done">${spot.note||''}</textarea>
       </div>
 
+      <div class="detail-section" style="border-bottom:none;padding-bottom:0;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--gray-400);margin-bottom:8px;">檔案</div>
+        <div id="spot-files-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;"></div>
+        <div id="spot-files-docs"></div>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--gray-200);border-radius:10px;cursor:pointer;color:var(--gray-400);font-size:0.9375rem;margin-top:8px;">
+          <span>＋ 上傳照片或文件</span>
+          <input type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx" style="display:none;" onchange="uploadSpotFiles(this.files)">
+        </label>
+        <div id="spot-upload-status" style="font-size:0.875rem;color:var(--gray-400);margin-top:6px;"></div>
+      </div>
+
       <div class="detail-section" style="border-bottom:none;">
         <div style="display:flex;gap:8px;">
           <button onclick="openDetail(DAYS[detailTarget.day].spots[detailTarget.idx])"
@@ -2148,7 +2172,120 @@ function openDetailEdit() {
 
   updateDetailDepart();
   updateDetailCoordBtn();
+  loadSpotFiles(spot.id, true);
 }
+
+// ===== SPOT FILES =====
+let spotFiles = [];
+
+async function loadSpotFiles(spotId, editMode) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !currentProjectId) return;
+  const path = `${session.user.id}/spots/${currentProjectId}/${spotId}`;
+  const { data, error } = await sb.storage.from('trip-files').list(path);
+  spotFiles = (!error && data) ? data.map(f => ({ name: f.name, path: `${path}/${f.name}` })) : [];
+  await renderSpotFileGrid(spotFiles, editMode);
+}
+
+async function renderSpotFileGrid(files, editMode) {
+  const loading = document.getElementById('spot-files-loading');
+  const grid = document.getElementById('spot-files-grid');
+  const docs = document.getElementById('spot-files-docs');
+  if (!grid || !docs) return;
+  if (loading) loading.style.display = 'none';
+  const isImage = f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name);
+  const images = files.filter(isImage);
+  const others = files.filter(f => !isImage(f));
+
+  const urls = {};
+  for (const f of files) {
+    const { data } = await sb.storage.from('trip-files').createSignedUrl(f.path, 3600);
+    urls[f.path] = data?.signedUrl || '';
+  }
+
+  const imageList = images.map(f => ({ url: urls[f.path] || '', name: f.name }));
+  grid.innerHTML = images.map((f, i) => {
+    const url = urls[f.path] || '';
+    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name);
+    const listEnc = encodeURIComponent(JSON.stringify(imageList));
+    return editMode
+      ? `<div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"><button onclick="deleteSpotFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button></div>`
+      : `<div onclick="openFilePreview('${url}','image',decodeURIComponent('${nEnc}'),JSON.parse(decodeURIComponent('${listEnc}')),${i})" style="aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);cursor:pointer;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
+  }).join('');
+
+  docs.innerHTML = others.map(f => {
+    const url = urls[f.path] || '';
+    const ext = f.name.split('.').pop().toUpperCase();
+    const icon = ext === 'PDF' ? '📄' : (ext === 'XLSX' || ext === 'XLS') ? '📊' : '📎';
+    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
+    return editMode
+      ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><button onclick="deleteSpotFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="background:none;border:none;color:var(--coral);font-size:0.875rem;cursor:pointer;flex-shrink:0;">刪除</button></div>`
+      : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'doc',decodeURIComponent('${nEnc}'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;cursor:pointer;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><span style="font-size:0.75rem;color:var(--gray-400);">▶</span></div>`;
+  }).join('');
+
+  if (files.length === 0 && !editMode) {
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:0.875rem;color:var(--gray-400);">尚未上傳任何檔案</div>';
+  }
+}
+
+async function uploadSpotFiles(files) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !currentProjectId || !detailTarget) return;
+  const spot = DAYS[detailTarget.day].spots[detailTarget.idx];
+  const status = document.getElementById('spot-upload-status');
+  if (status) status.textContent = '上傳中…';
+  const path = `${session.user.id}/spots/${currentProjectId}/${spot.id}`;
+  let uploaded = 0;
+  for (const file of files) {
+    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error } = await sb.storage.from('trip-files').upload(`${path}/${safeName}`, file);
+    if (!error) { spotFiles.push({ name: safeName, path: `${path}/${safeName}` }); uploaded++; }
+  }
+  if (status) status.textContent = uploaded > 0 ? `✓ 已上傳 ${uploaded} 個檔案` : '上傳失敗，請重試';
+  renderSpotFileGrid(spotFiles, true);
+}
+
+async function deleteSpotFile(path, name) {
+  if (!confirm(`確定刪除「${name}」？`)) return;
+  const { error } = await sb.storage.from('trip-files').remove([path]);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  spotFiles = spotFiles.filter(f => f.path !== path);
+  renderSpotFileGrid(spotFiles, document.getElementById('spot-upload-status') !== null);
+}
+
+
+function insertSpotAfter(dayIdx, afterIdx) {
+  const day = DAYS[dayIdx];
+  const prev = day.spots[afterIdx];
+  const defaultArrive = calcDepartTime(prev.arrive, prev.stay) || '';
+  const newSpot = {
+    id: 'spot_' + Date.now(),
+    name: '新景點', type: 'sight',
+    arrive: defaultArrive, stay: '', note: '',
+    mapUrl: '', lat: null, lng: null,
+    parkingLat: null, parkingLng: null
+  };
+  const insertIdx = afterIdx + 1;
+  day.spots.splice(insertIdx, 0, newSpot);
+  if (!day.transports) day.transports = [];
+  day.transports.splice(insertIdx - 1, 0, { mode: '', time: '' });
+  recalcFromSpot(dayIdx, insertIdx);
+  saveToStorage();
+  renderList();
+  renderMap(dayIdx);
+}
+
+function insertSpotAfterDetail() {
+  if (!detailTarget) return;
+  const { day, idx } = detailTarget;
+  insertSpotAfter(day, idx);
+  // Open edit page for the new spot
+  detailTarget = { day, idx: idx + 1 };
+  openDetailEdit();
+  document.getElementById('list-view').classList.add('hidden-left');
+  document.getElementById('detail-view').classList.remove('hidden-right');
+}
+
 
 function openDetailAndEdit(dayIdx, idx) {
   detailTarget = { day: dayIdx, idx };
@@ -2158,7 +2295,6 @@ function openDetailAndEdit(dayIdx, idx) {
   listView.classList.add('hidden-left');
   document.getElementById('detail-view').classList.remove('hidden-right');
 }
-
 
 function duplicateFromDetail() {
   if (!detailTarget) return;
@@ -2588,6 +2724,17 @@ function showListView() {
   // Swipe left/right — list view only
   const listView = document.getElementById('list-view');
   let swipeStartX = 0, swipeStartY = 0;
+  listView.addEventListener('scroll', () => {
+    if (currentView !== 'list') return;
+    const raw = sessionStorage.getItem('last_view_state');
+    if (raw) {
+      try {
+        const state = JSON.parse(raw);
+        state.scroll = listView.scrollTop;
+        sessionStorage.setItem('last_view_state', JSON.stringify(state));
+      } catch {}
+    }
+  }, { passive: true });
   listView.addEventListener('touchstart', e => {
     swipeStartX = e.touches[0].clientX;
     swipeStartY = e.touches[0].clientY;
@@ -3492,6 +3639,27 @@ async function loadProject(id, row) {
   renderList();
   document.getElementById('projects-screen').classList.add('hidden');
   if (!map) initMap(); else renderMap(0);
+
+  // Restore last view state
+  const stateRaw = sessionStorage.getItem('last_view_state');
+  if (stateRaw) {
+    try {
+      const state = JSON.parse(stateRaw);
+      if (state.view === 'detail' && state.day != null && state.idx != null) {
+        const spot = DAYS[state.day]?.spots[state.idx];
+        if (spot) { currentDay = state.day; openDetail(spot); return; }
+      } else if (state.view === 'list' && state.day != null) {
+        switchDay(state.day);
+        if (state.scroll) {
+          setTimeout(() => {
+            const lv = document.getElementById('list-view');
+            if (lv) lv.scrollTop = state.scroll;
+          }, 50);
+        }
+        return;
+      }
+    } catch {}
+  }
   switchToOverview();
 }
 
@@ -3605,7 +3773,24 @@ function importData(e) {
   reader.readAsText(file);
 }
 
-// ===== INIT =====
+// Save scroll position when leaving page
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    const lv = document.getElementById('list-view');
+    if (lv && currentView === 'list') {
+      const raw = sessionStorage.getItem('last_view_state');
+      if (raw) {
+        try {
+          const state = JSON.parse(raw);
+          state.scroll = lv.scrollTop;
+          sessionStorage.setItem('last_view_state', JSON.stringify(state));
+        } catch {}
+      }
+    }
+  }
+});
+
+
 async function enterApp(session) {
   document.getElementById('auth-screen').classList.add('hidden');
   initMap();

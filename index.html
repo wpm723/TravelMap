@@ -2716,12 +2716,14 @@ async function renderOverviewFileGrid(files, editMode) {
   // Get signed URLs for all files
   const urls = await getSignedUrls(files);
 
-  grid.innerHTML = images.map(f => {
+  const imageList = images.map(f => ({ url: urls[f.path] || '', name: f.name }));
+  grid.innerHTML = images.map((f, i) => {
     const url = urls[f.path] || '';
-    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
+    const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name);
+    const listEnc = encodeURIComponent(JSON.stringify(imageList));
     return editMode
       ? `<div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"><button onclick="deleteOverviewFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button></div>`
-      : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'image',decodeURIComponent('${nEnc}'))" style="aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);cursor:pointer;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
+      : `<div onclick="openFilePreview('${url}','image',decodeURIComponent('${nEnc}'),JSON.parse(decodeURIComponent('${listEnc}')),${i})" style="aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);cursor:pointer;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
   }).join('');
 
   docs.innerHTML = others.map(f => {
@@ -2739,67 +2741,111 @@ async function renderOverviewFileGrid(files, editMode) {
   }
 }
 
-function openFilePreview(url, type, name) {
+function openFilePreview(url, type, name, allImages, currentIndex) {
   if (type === 'image') {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow:hidden;touch-action:none;';
+    // Build or reuse overlay
+    let overlay = document.querySelector('[data-overlay]');
+    if (overlay) document.body.removeChild(overlay);
+
+    overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;overflow:hidden;touch-action:none;';
     overlay.dataset.overlay = '1';
+
+    let idx = currentIndex ?? 0;
+    const imgs = allImages || [{ url, name }];
+
+    function loadImage(i) {
+      idx = ((i % imgs.length) + imgs.length) % imgs.length;
+      const cur = imgs[idx];
+      imgEl.src = cur.url;
+      nameEl.textContent = cur.name;
+      dlBtn.href = cur.url;
+      dlBtn.download = cur.name;
+      scale = 1; translateX = 0; translateY = 0;
+      imgEl.style.transition = '';
+      applyTransform();
+    }
+
     overlay.innerHTML = `
-      <div style="position:absolute;top:16px;right:16px;display:flex;gap:12px;z-index:1;">
-        <a href="${url}" download="${name}" style="color:#fff;font-size:0.875rem;text-decoration:none;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:6px;">下載</a>
-        <button onclick="document.body.removeChild(this.closest('[data-overlay]'))" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">×</button>
+      <div style="position:absolute;top:16px;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:0 16px;z-index:1;">
+        <span id="lb-counter" style="color:rgba(255,255,255,0.6);font-size:0.875rem;"></span>
+        <div style="display:flex;gap:12px;">
+          <a id="lb-dl" href="${url}" download="${name}" style="color:#fff;font-size:0.875rem;text-decoration:none;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:6px;">下載</a>
+          <button onclick="document.body.removeChild(this.closest('[data-overlay]'))" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">×</button>
+        </div>
       </div>
-      <div id="img-container" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden;">
-        <img id="preview-img" src="${url}" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;transform-origin:center center;user-select:none;">
+      <div style="display:flex;align-items:center;width:100%;height:100%;">
+        <button id="lb-prev" style="position:absolute;left:8px;z-index:1;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:none;" class="lb-nav-btn">‹</button>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;height:100%;overflow:hidden;">
+          <img id="lb-img" src="${url}" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;user-select:none;transform-origin:center center;">
+        </div>
+        <button id="lb-next" style="position:absolute;right:8px;z-index:1;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;width:40px;height:40px;border-radius:50%;cursor:pointer;display:none;" class="lb-nav-btn">›</button>
       </div>
-      <div style="color:rgba(255,255,255,0.6);font-size:0.875rem;margin-top:10px;pointer-events:none;">${name}</div>`;
+      <div id="lb-name" style="color:rgba(255,255,255,0.6);font-size:0.875rem;margin-top:8px;pointer-events:none;max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>`;
+
     document.body.appendChild(overlay);
 
+    const imgEl = overlay.querySelector('#lb-img');
+    const nameEl = overlay.querySelector('#lb-name');
+    const dlBtn = overlay.querySelector('#lb-dl');
+    const counter = overlay.querySelector('#lb-counter');
+    const prevBtn = overlay.querySelector('#lb-prev');
+    const nextBtn = overlay.querySelector('#lb-next');
+
+    function updateCounter() {
+      counter.textContent = imgs.length > 1 ? `${idx + 1} / ${imgs.length}` : '';
+    }
+    updateCounter();
+
+    if (imgs.length <= 1) { prevBtn.style.display = 'none'; nextBtn.style.display = 'none'; }
+    else if (window.innerWidth > 768) { prevBtn.style.display = ''; nextBtn.style.display = ''; }
+
+    prevBtn.addEventListener('click', e => { e.stopPropagation(); loadImage(idx - 1); updateCounter(); });
+    nextBtn.addEventListener('click', e => { e.stopPropagation(); loadImage(idx + 1); updateCounter(); });
+
     // Pinch-to-zoom + pan
-    const img = overlay.querySelector('#preview-img');
     let scale = 1, lastScale = 1;
-    let translateX = 0, translateY = 0;
-    let lastTX = 0, lastTY = 0;
+    let translateX = 0, translateY = 0, lastTX = 0, lastTY = 0;
     let lastDist = 0, lastMidX = 0, lastMidY = 0;
-    let panStartX = 0, panStartY = 0, isPanning = false;
+    let isPanning = false, panStartX = 0, panStartY = 0;
+    let swipeStartX = 0, swipeStartY = 0, isSwiping = false;
 
     function applyTransform() {
       scale = Math.max(1, Math.min(scale, 6));
       if (scale === 1) { translateX = 0; translateY = 0; }
-      img.style.transform = `translate(${translateX}px,${translateY}px) scale(${scale})`;
+      imgEl.style.transform = `translate(${translateX}px,${translateY}px) scale(${scale})`;
     }
 
     overlay.addEventListener('touchstart', e => {
       if (e.touches.length === 2) {
+        isSwiping = false;
         const dx = e.touches[1].clientX - e.touches[0].clientX;
         const dy = e.touches[1].clientY - e.touches[0].clientY;
         lastDist = Math.hypot(dx, dy);
         lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
         lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        lastScale = scale;
-        lastTX = translateX;
-        lastTY = translateY;
+        lastScale = scale; lastTX = translateX; lastTY = translateY;
         isPanning = false;
-      } else if (e.touches.length === 1 && scale > 1) {
-        panStartX = e.touches[0].clientX - translateX;
-        panStartY = e.touches[0].clientY - translateY;
-        isPanning = true;
+      } else if (e.touches.length === 1) {
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        isSwiping = scale <= 1;
+        if (scale > 1) { panStartX = e.touches[0].clientX - translateX; panStartY = e.touches[0].clientY - translateY; isPanning = true; }
       }
     }, { passive: true });
 
     overlay.addEventListener('touchmove', e => {
       e.preventDefault();
       if (e.touches.length === 2) {
+        isSwiping = false;
         const dx = e.touches[1].clientX - e.touches[0].clientX;
         const dy = e.touches[1].clientY - e.touches[0].clientY;
         const dist = Math.hypot(dx, dy);
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         scale = lastScale * (dist / lastDist);
-        translateX = lastTX + (midX - lastMidX);
-        translateY = lastTY + (midY - lastMidY);
+        translateX = lastTX + ((e.touches[0].clientX + e.touches[1].clientX) / 2 - lastMidX);
+        translateY = lastTY + ((e.touches[0].clientY + e.touches[1].clientY) / 2 - lastMidY);
         applyTransform();
-      } else if (e.touches.length === 1 && isPanning) {
+      } else if (e.touches.length === 1 && isPanning && scale > 1) {
         translateX = e.touches[0].clientX - panStartX;
         translateY = e.touches[0].clientY - panStartY;
         applyTransform();
@@ -2807,20 +2853,28 @@ function openFilePreview(url, type, name) {
     }, { passive: false });
 
     overlay.addEventListener('touchend', e => {
-      if (e.touches.length < 2) isPanning = false;
-      // Double-tap to reset
+      isPanning = false;
+      if (isSwiping && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - swipeStartX;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          loadImage(dx < 0 ? idx + 1 : idx - 1);
+          updateCounter();
+        }
+      }
+      isSwiping = false;
     }, { passive: true });
 
-    // Double-tap to reset zoom
+    // Double-tap to zoom
     let lastTap = 0;
     overlay.addEventListener('touchend', e => {
       const now = Date.now();
       if (now - lastTap < 300) {
         scale = scale > 1 ? 1 : 2.5;
         translateX = 0; translateY = 0;
-        img.style.transition = 'transform 0.2s';
+        imgEl.style.transition = 'transform 0.2s';
         applyTransform();
-        setTimeout(() => { img.style.transition = ''; }, 250);
+        setTimeout(() => { imgEl.style.transition = ''; }, 250);
       }
       lastTap = now;
     }, { passive: true });

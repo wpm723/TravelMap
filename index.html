@@ -2694,26 +2694,38 @@ async function renderOverview() {
   renderOverviewFileGrid(overviewFiles, false);
 }
 
-function renderOverviewFileGrid(files, editMode) {
+async function getSignedUrls(files) {
+  const urls = {};
+  for (const f of files) {
+    const { data, error } = await sb.storage.from('trip-files').createSignedUrl(f.path, 3600);
+    urls[f.path] = error ? '' : (data?.signedUrl || '');
+  }
+  return urls;
+}
+
+async function renderOverviewFileGrid(files, editMode) {
   const loading = document.getElementById('ov-files-loading');
   const grid = document.getElementById('ov-files-grid');
   const docs = document.getElementById('ov-files-docs');
   if (!grid || !docs) return;
   if (loading) loading.style.display = 'none';
-  const isImage = f => /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(f.name);
+  const isImage = f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name);
   const images = files.filter(isImage);
   const others = files.filter(f => !isImage(f));
+
+  // Get signed URLs for all files
+  const urls = await getSignedUrls(files);
+
   grid.innerHTML = images.map(f => {
-    const { data } = sb.storage.from('trip-files').getPublicUrl(f.path);
-    const url = data?.publicUrl || '';
+    const url = urls[f.path] || '';
     const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
     return editMode
       ? `<div style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"><button onclick="deleteOverviewFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button></div>`
       : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'image',decodeURIComponent('${nEnc}'))" style="aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--gray-100);cursor:pointer;"><img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
   }).join('');
+
   docs.innerHTML = others.map(f => {
-    const { data } = sb.storage.from('trip-files').getPublicUrl(f.path);
-    const url = data?.publicUrl || '';
+    const url = urls[f.path] || '';
     const ext = f.name.split('.').pop().toUpperCase();
     const icon = ext === 'PDF' ? '📄' : (ext === 'XLSX' || ext === 'XLS') ? '📊' : '📎';
     const pEnc = encodeURIComponent(f.path), nEnc = encodeURIComponent(f.name), uEnc = encodeURIComponent(url);
@@ -2721,6 +2733,7 @@ function renderOverviewFileGrid(files, editMode) {
       ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><button onclick="deleteOverviewFile(decodeURIComponent('${pEnc}'),decodeURIComponent('${nEnc}'))" style="background:none;border:none;color:var(--coral);font-size:0.875rem;cursor:pointer;flex-shrink:0;">刪除</button></div>`
       : `<div onclick="openFilePreview(decodeURIComponent('${uEnc}'),'doc',decodeURIComponent('${nEnc}'))" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gray-100);border-radius:10px;margin-bottom:6px;cursor:pointer;"><span style="font-size:1.25rem;">${icon}</span><span style="flex:1;min-width:0;font-size:0.9375rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span><span style="font-size:0.75rem;color:var(--gray-400);">▶</span></div>`;
   }).join('');
+
   if (files.length === 0 && !editMode) {
     grid.innerHTML = '<div style="grid-column:1/-1;font-size:0.875rem;color:var(--gray-400);">尚未上傳任何檔案</div>';
   }
@@ -2729,10 +2742,89 @@ function renderOverviewFileGrid(files, editMode) {
 function openFilePreview(url, type, name) {
   if (type === 'image') {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
-    overlay.innerHTML = `<div style="position:absolute;top:16px;right:16px;display:flex;gap:12px;"><a href="${url}" download="${name}" style="color:#fff;font-size:0.875rem;text-decoration:none;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:6px;">下載</a><button onclick="document.body.removeChild(this.closest('[data-overlay]'))" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">×</button></div><img src="${url}" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;"><div style="color:rgba(255,255,255,0.6);font-size:0.875rem;margin-top:10px;">${name}</div>`;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow:hidden;touch-action:none;';
     overlay.dataset.overlay = '1';
+    overlay.innerHTML = `
+      <div style="position:absolute;top:16px;right:16px;display:flex;gap:12px;z-index:1;">
+        <a href="${url}" download="${name}" style="color:#fff;font-size:0.875rem;text-decoration:none;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:6px;">下載</a>
+        <button onclick="document.body.removeChild(this.closest('[data-overlay]'))" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div id="img-container" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden;">
+        <img id="preview-img" src="${url}" style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;transform-origin:center center;user-select:none;">
+      </div>
+      <div style="color:rgba(255,255,255,0.6);font-size:0.875rem;margin-top:10px;pointer-events:none;">${name}</div>`;
     document.body.appendChild(overlay);
+
+    // Pinch-to-zoom + pan
+    const img = overlay.querySelector('#preview-img');
+    let scale = 1, lastScale = 1;
+    let translateX = 0, translateY = 0;
+    let lastTX = 0, lastTY = 0;
+    let lastDist = 0, lastMidX = 0, lastMidY = 0;
+    let panStartX = 0, panStartY = 0, isPanning = false;
+
+    function applyTransform() {
+      scale = Math.max(1, Math.min(scale, 6));
+      if (scale === 1) { translateX = 0; translateY = 0; }
+      img.style.transform = `translate(${translateX}px,${translateY}px) scale(${scale})`;
+    }
+
+    overlay.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        lastDist = Math.hypot(dx, dy);
+        lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        lastScale = scale;
+        lastTX = translateX;
+        lastTY = translateY;
+        isPanning = false;
+      } else if (e.touches.length === 1 && scale > 1) {
+        panStartX = e.touches[0].clientX - translateX;
+        panStartY = e.touches[0].clientY - translateY;
+        isPanning = true;
+      }
+    }, { passive: true });
+
+    overlay.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        const dist = Math.hypot(dx, dy);
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        scale = lastScale * (dist / lastDist);
+        translateX = lastTX + (midX - lastMidX);
+        translateY = lastTY + (midY - lastMidY);
+        applyTransform();
+      } else if (e.touches.length === 1 && isPanning) {
+        translateX = e.touches[0].clientX - panStartX;
+        translateY = e.touches[0].clientY - panStartY;
+        applyTransform();
+      }
+    }, { passive: false });
+
+    overlay.addEventListener('touchend', e => {
+      if (e.touches.length < 2) isPanning = false;
+      // Double-tap to reset
+    }, { passive: true });
+
+    // Double-tap to reset zoom
+    let lastTap = 0;
+    overlay.addEventListener('touchend', e => {
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        scale = scale > 1 ? 1 : 2.5;
+        translateX = 0; translateY = 0;
+        img.style.transition = 'transform 0.2s';
+        applyTransform();
+        setTimeout(() => { img.style.transition = ''; }, 250);
+      }
+      lastTap = now;
+    }, { passive: true });
+
     overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
   } else {
     window.open(url, '_blank');
@@ -2782,7 +2874,7 @@ function renderOverviewEdit() {
         <div id="ov-files-docs"></div>
         <label style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px dashed var(--gray-200);border-radius:10px;cursor:pointer;color:var(--gray-400);font-size:0.9375rem;margin-top:8px;">
           <span>＋ 上傳照片或文件</span>
-          <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" style="display:none;" onchange="uploadOverviewFiles(this.files)">
+          <input type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.doc,.docx,.xls,.xlsx" style="display:none;" onchange="uploadOverviewFiles(this.files)">
         </label>
         <div id="ov-upload-status" style="font-size:0.875rem;color:var(--gray-400);margin-top:6px;"></div>
       </div>

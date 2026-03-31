@@ -1089,7 +1089,7 @@
         <button onclick="headerBack()" style="background:none;border:none;color:rgba(255,255,255,0.9);cursor:pointer;display:flex;align-items:center;flex-shrink:0;padding:0;width:40px;height:40px;justify-content:center;"><iconify-icon icon="tabler:arrow-left" style="font-size:1.375rem;"></iconify-icon></button>
         <div id="day-tabs" style="flex:1;min-width:0;"></div>
         <div id="detail-header-nav" style="display:none;flex:1;min-width:0;align-items:center;gap:6px;overflow:hidden;padding-bottom:4px;font-size:20px;font-weight:500;"></div>
-        <div id="save-indicator" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;flex-shrink:0;margin-left:4px;"></div>
+        <div id="save-indicator" style="display:none;"></div>
       </div>
     </div>
     <div id="panel-body">
@@ -1367,14 +1367,15 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 }
 
-let spotMarkers = {}; // spot.id → marker DOM element
+let spotMarkers = {}; // spot.id → pin marker
+let spotLabelMarkers = {}; // spot.id → label marker
 
 function renderMap(dayIdx) {
   markers.forEach(m => map.removeLayer(m));
   routeLines.forEach(l => map.removeLayer(l));
   markers = [];
   routeLines = [];
-  spotMarkers = {};
+  spotMarkers = {}; spotLabelMarkers = {};
 
   const day = DAYS[dayIdx];
   const coords = day.spots
@@ -1415,13 +1416,14 @@ function renderMap(dayIdx) {
     const m = L.marker(coord, { icon }).addTo(map);
     m.on('click', () => openDetail(spot));
     markers.push(m);
-    // Store reference to the pin element after it's added to DOM
     m._spotId = spot.id;
     spotMarkers[spot.id] = m;
 
     const lbl = L.marker(coord, { icon: labelIcon, interactive: true }).addTo(map);
     lbl.on('click', () => openDetail(spot));
     markers.push(lbl);
+    lbl._spotId = spot.id;
+    spotLabelMarkers[spot.id] = lbl;
   });
 
   map.setView(day.center, day.zoom, { animate: true });
@@ -1444,15 +1446,18 @@ function focusMapMarker(spotId) {
   // Set z-index for all markers based on proximity to focused
   day.spots.forEach((spot, i) => {
     const m = spotMarkers[spot.id];
-    if (!m || !m._icon) return;
+    const lbl = spotLabelMarkers[spot.id];
+    let zOffset;
     if (spot.id === spotId) {
-      m.setZIndexOffset(10000);
+      zOffset = 10000;
     } else if (focusedIdx >= 0) {
       const dist = Math.abs(i - focusedIdx);
-      m.setZIndexOffset(1000 - dist * 10);
+      zOffset = 1000 - dist * 10;
     } else {
-      m.setZIndexOffset((day.spots.length - i) * 10);
+      zOffset = (day.spots.length - i) * 10;
     }
+    if (m && m._icon) m.setZIndexOffset(zOffset);
+    if (lbl && lbl._icon) lbl.setZIndexOffset(zOffset);
   });
 
   if (!spotId) return;
@@ -1580,7 +1585,7 @@ function renderOverviewMap() {
   routeLines.forEach(l => map.removeLayer(l));
   markers = [];
   routeLines = [];
-  spotMarkers = {};
+  spotMarkers = {}; spotLabelMarkers = {};
 
   const allCoords = [];
 
@@ -2040,6 +2045,9 @@ function openDetail(spot, skipMapAnim = false) {
 // ===== DETAIL EDIT MODE =====
 function openDetailEdit() {
   if (!detailTarget) return;
+  // Save state so returning to page restores edit view
+  const { day: editDay, idx: editIdx } = detailTarget;
+  sessionStorage.setItem('last_view_state', JSON.stringify({ view: 'edit', day: editDay, idx: editIdx }));
   // Snap to expanded so edit content is fully visible
   const panel = document.getElementById('panel');
   if (!panel.classList.contains('expanded')) {
@@ -3645,7 +3653,17 @@ async function loadProject(id, row) {
   if (stateRaw) {
     try {
       const state = JSON.parse(stateRaw);
-      if (state.view === 'detail' && state.day != null && state.idx != null) {
+      if (state.view === 'edit' && state.day != null && state.idx != null) {
+        const spot = DAYS[state.day]?.spots[state.idx];
+        if (spot) {
+          currentDay = state.day;
+          detailTarget = { day: state.day, idx: state.idx };
+          openDetailEdit();
+          document.getElementById('list-view').classList.add('hidden-left');
+          document.getElementById('detail-view').classList.remove('hidden-right');
+          return;
+        }
+      } else if (state.view === 'detail' && state.day != null && state.idx != null) {
         const spot = DAYS[state.day]?.spots[state.idx];
         if (spot) { currentDay = state.day; openDetail(spot); return; }
       } else if (state.view === 'list' && state.day != null) {
